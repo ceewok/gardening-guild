@@ -1,0 +1,16 @@
+{
+    "files": [
+        {
+            "path": "scripts/bootstrap.py",
+            "sha256": "C298F0DB85BD464907AC25546A0CD7B6B1318FA874A7AEE77D55B491821E3CEA"
+        },
+        {
+            "path": "platformio.ini",
+            "sha256": "3024348D8EDF36B60DC510AF38BB256E9621F16B0B82C76A360C67B278A252F7"
+        },
+        {
+            "path": "scripts/clear_libs_on_new_version.py",
+            "sha256": "0A7E1D1E1904524634DBE12AE800E526577ED39FA8D3CA9A9E183E169BDE497C"
+        }
+    ]
+}
