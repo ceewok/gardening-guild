@@ -84,7 +84,7 @@ void drive_forward(int power, float inches)
         right_motor.SetPercent(power + rightAdjustment);
         left_motor.SetPercent(power + leftAdjustment);
 
-        Sleep(0.05);
+        Sleep(0.1);
     }
 
     //Turn off motors
@@ -123,6 +123,56 @@ void turn(int percent, float degrees){
 
 }
 
+void getMaxVelocities(){
+    float previousTime = TimeNow();
+    float startTime = TimeNow();
+
+    left_encoder.ResetCounts();
+    right_encoder.ResetCounts();
+
+    int previousLeftCounts = left_encoder.Counts();
+    int previousRightCounts = right_encoder.Counts();
+
+    float leftVelocityTotal = 0;
+    float rightVelocityTotal = 0;
+
+    right_motor.SetPercent(-100);
+    left_motor.SetPercent(100);
+
+    Sleep(0.1);
+
+    while((left_encoder.Counts() + right_encoder.Counts()) / 2 < 120 * COUNTS_PER_INCH){
+
+        int deltaRightCount = right_encoder.Counts() - previousRightCounts;
+        int deltaLeftCount = left_encoder.Counts() - previousLeftCounts;
+
+        float deltaTime = TimeNow() - previousTime;
+
+        float realRightVelocity = (deltaRightCount / COUNTS_PER_INCH) / deltaTime;
+        float realLeftVelocity = (deltaLeftCount / COUNTS_PER_INCH) / deltaTime;
+
+        leftVelocityTotal += realLeftVelocity;
+        rightVelocityTotal += realRightVelocity;
+
+        previousRightCounts = right_encoder.Counts();
+        previousLeftCounts = left_encoder.Counts();
+        previousTime = TimeNow();
+
+        Sleep(0.1);
+    }
+
+    float rightVelocity = rightVelocityTotal / (TimeNow() - startTime);
+    float leftVelocity = leftVelocityTotal / (TimeNow() - startTime);
+
+    LCD.Write("Right Velocity:");
+    LCD.WriteLine(rightVelocity);
+    LCD.Write("Left Velocity:");
+    LCD.WriteLine(leftVelocity);
+
+    right_motor.SetPercent(0);
+    left_motor.SetPercent(0);
+}
+
 void ERCMain()
 {
     //int motor_percent = 50;
@@ -138,42 +188,6 @@ void ERCMain()
     while(LCD.Touch(&x,&y)); //Wait for screen to be unpressed
     LCD.Clear();
 
-
-
-    right_motor.SetPercent(-100);
-    left_motor.SetPercent(100);
-
-    float previousTime = TimeNow();
-
-    left_encoder.ResetCounts();
-    right_encoder.ResetCounts();
-
-    int previousLeftCounts = left_encoder.Counts();
-    int previousRightCounts = right_encoder.Counts();
-
-    Sleep(0.1);
-
-    while((left_encoder.Counts() + right_encoder.Counts()) / 2 < 100 * COUNTS_PER_INCH){
-        int deltaRightCount = right_encoder.Counts() - previousRightCounts;
-        int deltaLeftCount = left_encoder.Counts() - previousLeftCounts;
-        float deltaTime = TimeNow() - previousTime;
-        float realRightVelocity = (deltaRightCount * COUNTS_PER_INCH) / deltaTime;
-        float realLeftVelocity = (deltaLeftCount * COUNTS_PER_INCH) / deltaTime;
-
-        previousRightCounts = right_encoder.Counts();
-        previousLeftCounts = left_encoder.Counts();
-        previousTime = TimeNow();
-        LCD.Clear();
-
-        LCD.Write("Right velocity:");
-        LCD.WriteLine(realRightVelocity);
-        LCD.Write("Left velocity:");
-        LCD.WriteLine(realLeftVelocity);
-
-        Sleep(0.05);
-    }
-
-    right_motor.SetPercent(0);
-    left_motor.SetPercent(0);
+    getMaxVelocities();
 
 }
