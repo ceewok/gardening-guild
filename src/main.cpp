@@ -72,20 +72,75 @@ void drive(float power, float inches)
 {
 
     float maxCounts = inches * COUNTS_PER_INCH;
-    float expectedVelocity = MAX_VEL / (100 / power);
+    float expectedVelocity = MAX_VEL * (power / 100);
 
     rightPIDController.reset();
     leftPIDController.reset();
 
-    while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+    if(power > 0){
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
 
-        float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
-        float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
 
-        right_motor.SetPercent(-1 * (power + rightAdjustment));
-        left_motor.SetPercent(power + leftAdjustment);
+            right_motor.SetPercent(-1 * (power + rightAdjustment));
+            left_motor.SetPercent(power + leftAdjustment);
 
-        Sleep(0.05);
+            Sleep(0.05);
+        }
+    }else{
+        power *= -1;
+        expectedVelocity *= -1;
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
+            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+
+            right_motor.SetPercent(power + rightAdjustment);
+            left_motor.SetPercent(-1 * (power + leftAdjustment));
+
+            Sleep(0.05);
+        }
+    }
+
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+}
+
+void newDrive(float expectedVelocity, float inches)
+{
+
+    float maxCounts = inches * COUNTS_PER_INCH;
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+
+    rightPIDController.reset();
+    leftPIDController.reset();
+
+    if(expectedVelocity > 0){
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
+            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+
+            right_motor.SetPercent(-1 * (expectedPower + rightAdjustment));
+            left_motor.SetPercent(expectedPower + leftAdjustment);
+
+            Sleep(0.05);
+        }
+    }else{
+        expectedPower *= -1;
+        expectedVelocity *= -1;
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
+            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+
+            right_motor.SetPercent(expectedPower + rightAdjustment);
+            left_motor.SetPercent(-1 * (expectedPower + leftAdjustment));
+
+            Sleep(0.05);
+        }
     }
 
     //Turn off motors
@@ -101,7 +156,7 @@ void turn(float power, float degrees){
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio;
     float max_counts = drive_inches * COUNTS_PER_INCH * 1.19;
-    float expectedVelocity = MAX_VEL / (100 / power);
+    float expectedVelocity = MAX_VEL * (power / 100);
 
     float leftAdjustment = 0;
     float rightAdjustment = 0;
@@ -181,11 +236,9 @@ void getMaxVelocities(){
 
 void ERCMain()
 {
-    //int motor_percent = 50;
 
-    int x, y; //for touch screen
+    int x, y;
 
-    //Initialize the screen
     LCD.Clear(BLACK);
     LCD.SetFontColor(WHITE);
 
@@ -194,14 +247,10 @@ void ERCMain()
     while(LCD.Touch(&x,&y)); //Wait for screen to be unpressed
     LCD.Clear();
 
-    drive(50, 7.375);
+    newDrive(12, 30);
 
     Sleep(0.25);
 
-    turn(35, 90);
-
-    Sleep(0.25);
-
-    drive(50, 36);
+    newDrive(-12, 30);
 
 }
