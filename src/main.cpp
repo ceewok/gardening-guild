@@ -5,8 +5,7 @@
 
 #define COUNTS_PER_INCH 40.489
 #define TRACK_WIDTH_INCHES 7.375
-#define MAX_VEL 42000
-
+#define MAX_VEL 24
 
 DigitalEncoder right_encoder(FEHIO::Pin8);
 DigitalEncoder left_encoder(FEHIO::Pin9);
@@ -16,7 +15,7 @@ FEHMotor right_motor(FEHMotor::Motor0,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
 struct PIDController{
-    float previousTime = TimeNow();
+    float previousTime = 0;
 
     float previousCounts = 0;
     float errorSum = 0;
@@ -41,14 +40,14 @@ struct PIDController{
 
         previousTime = TimeNow();
 
-        Sleep(0.01);
+        Sleep(0.03);
     }
 
     float PIDAdjustment(float expectedVelocity){
-        int deltaCount = encoder.Counts() - previousCounts;
+        float deltaCount = encoder.Counts() - previousCounts;
         previousCounts = encoder.Counts();
 
-        int deltaTime = TimeNow() - previousTime;
+        float deltaTime = TimeNow() - previousTime;
         previousTime = TimeNow();
 
         float realVelocity = (deltaCount / COUNTS_PER_INCH) / deltaTime;
@@ -69,22 +68,24 @@ struct PIDController{
 PIDController rightPIDController(right_encoder);
 PIDController leftPIDController(left_encoder);
 
-void drive_forward(int power, float inches)
+void drive(float power, float inches)
 {
 
     float maxCounts = inches * COUNTS_PER_INCH;
-    float expectedVelocity = power * MAX_VEL;
+    float expectedVelocity = MAX_VEL / (100 / power);
 
     rightPIDController.reset();
     leftPIDController.reset();
 
     while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
         float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
         float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
-        right_motor.SetPercent(power + rightAdjustment);
+
+        right_motor.SetPercent(-1 * (power + rightAdjustment));
         left_motor.SetPercent(power + leftAdjustment);
 
-        Sleep(0.1);
+        Sleep(0.05);
     }
 
     //Turn off motors
@@ -94,28 +95,43 @@ void drive_forward(int power, float inches)
 
 //Turning circle is defined by the track width times pi. to turn 90 degrees, drive the motors 1/4 of the turning circle
 
-void turn(int percent, float degrees){
+void turn(float power, float degrees){
 
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio;
-    float max_counts = drive_inches * COUNTS_PER_INCH;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.19;
+    float expectedVelocity = MAX_VEL / (100 / power);
 
-    right_encoder.ResetCounts();
-    left_encoder.ResetCounts();
+    float leftAdjustment = 0;
+    float rightAdjustment = 0;
+
+    rightPIDController.reset();
+    leftPIDController.reset();
 
     if(degrees > 0){ //Turn counterclockwise
-        right_motor.SetPercent(-percent);
-        left_motor.SetPercent(-percent);
 
-        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts);
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
+            right_motor.SetPercent(-1 * (power + rightAdjustment));
+            left_motor.SetPercent(-1 * (power + leftAdjustment));
+
+            leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+
+            Sleep(0.05);
+        }
     }else{ //Turn clockwise
-        right_motor.SetPercent(percent);
-        left_motor.SetPercent(percent);
+        max_counts = max_counts * -1;
 
-        drive_inches = drive_inches * -1;
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
+            right_motor.SetPercent(power + rightAdjustment);
+            left_motor.SetPercent(power + leftAdjustment);
 
-        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts);
+            leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
+            rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
+
+            Sleep(0.05);
+        }
     }
 
     left_motor.Stop();
@@ -125,23 +141,19 @@ void turn(int percent, float degrees){
 
 void getMaxVelocities(){
     float previousTime = TimeNow();
-    float startTime = TimeNow();
 
     left_encoder.ResetCounts();
     right_encoder.ResetCounts();
 
-    int previousLeftCounts = left_encoder.Counts();
-    int previousRightCounts = right_encoder.Counts();
-
-    float leftVelocityTotal = 0;
-    float rightVelocityTotal = 0;
+    float previousLeftCounts = 0;
+    float previousRightCounts = 0;
 
     right_motor.SetPercent(-100);
     left_motor.SetPercent(100);
 
     Sleep(0.1);
 
-    while((left_encoder.Counts() + right_encoder.Counts()) / 2 < 120 * COUNTS_PER_INCH){
+    while((left_encoder.Counts() + right_encoder.Counts()) / 2 < 24 * COUNTS_PER_INCH){
 
         int deltaRightCount = right_encoder.Counts() - previousRightCounts;
         int deltaLeftCount = left_encoder.Counts() - previousLeftCounts;
@@ -151,8 +163,10 @@ void getMaxVelocities(){
         float realRightVelocity = (deltaRightCount / COUNTS_PER_INCH) / deltaTime;
         float realLeftVelocity = (deltaLeftCount / COUNTS_PER_INCH) / deltaTime;
 
-        leftVelocityTotal += realLeftVelocity;
-        rightVelocityTotal += realRightVelocity;
+        LCD.Write("Right Velocity:");
+        LCD.WriteLine(realRightVelocity);
+        LCD.Write("Left Velocity:");
+        LCD.WriteLine(realLeftVelocity);
 
         previousRightCounts = right_encoder.Counts();
         previousLeftCounts = left_encoder.Counts();
@@ -160,14 +174,6 @@ void getMaxVelocities(){
 
         Sleep(0.1);
     }
-
-    float rightVelocity = rightVelocityTotal / (TimeNow() - startTime);
-    float leftVelocity = leftVelocityTotal / (TimeNow() - startTime);
-
-    LCD.Write("Right Velocity:");
-    LCD.WriteLine(rightVelocity);
-    LCD.Write("Left Velocity:");
-    LCD.WriteLine(leftVelocity);
 
     right_motor.SetPercent(0);
     left_motor.SetPercent(0);
@@ -188,6 +194,14 @@ void ERCMain()
     while(LCD.Touch(&x,&y)); //Wait for screen to be unpressed
     LCD.Clear();
 
-    getMaxVelocities();
+    drive(50, 7.375);
+
+    Sleep(0.25);
+
+    turn(35, 90);
+
+    Sleep(0.25);
+
+    drive(50, 36);
 
 }
