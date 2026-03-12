@@ -11,6 +11,7 @@
 #define PULSE_TIME 0.03
 #define PULSE_POWER 35
 #define RCS_WAIT_TIME_IN_SEC 0.1
+#define CDS_RED_LIGHT 0.25
 
 DigitalEncoder right_encoder(FEHIO::Pin8);
 DigitalEncoder left_encoder(FEHIO::Pin9);
@@ -18,6 +19,8 @@ DigitalEncoder left_encoder(FEHIO::Pin9);
 //Right motor has flipped polarity (- percent is forward)
 FEHMotor right_motor(FEHMotor::Motor0,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
+
+AnalogInputPin cds(FEHIO::Pin0);
 
 struct PIDController{
     float previousTime = 0;
@@ -73,47 +76,7 @@ struct PIDController{
 PIDController rightPIDController(right_encoder);
 PIDController leftPIDController(left_encoder);
 
-void drive(float power, float inches)
-{
-
-    float maxCounts = inches * COUNTS_PER_INCH;
-    float expectedVelocity = MAX_VEL * (power / 100);
-
-    rightPIDController.reset();
-    leftPIDController.reset();
-
-    if(power > 0){
-        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
-
-            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
-            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
-
-            right_motor.SetPercent(-1 * (power + rightAdjustment));
-            left_motor.SetPercent(power + leftAdjustment);
-
-            Sleep(0.05);
-        }
-    }else{
-        power *= -1;
-        expectedVelocity *= -1;
-        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
-
-            float leftAdjustment = leftPIDController.PIDAdjustment(expectedVelocity);
-            float rightAdjustment = rightPIDController.PIDAdjustment(expectedVelocity);
-
-            right_motor.SetPercent(power + rightAdjustment);
-            left_motor.SetPercent(-1 * (power + leftAdjustment));
-
-            Sleep(0.05);
-        }
-    }
-
-    //Turn off motors
-    right_motor.Stop();
-    left_motor.Stop();
-}
-
-void newDrive(float expectedVelocity, float inches)
+void drive(float expectedVelocity, float inches)
 {
 
     float maxCounts = inches * COUNTS_PER_INCH;
@@ -154,7 +117,6 @@ void newDrive(float expectedVelocity, float inches)
 }
 
 //Turning circle is defined by the track width times pi. to turn 90 degrees, drive the motors 1/4 of the turning circle
-
 void turn(float power, float degrees){
 
     float turn_ratio = degrees / 360;
@@ -239,9 +201,6 @@ void getMaxVelocities(){
     left_motor.SetPercent(0);
 }
 
-/*
- * Pulse forward a short distance using time
- */
 void pulse_forward(int percent, float seconds) 
 {
     // Set both motors to desired percent
@@ -256,9 +215,6 @@ void pulse_forward(int percent, float seconds)
     left_motor.Stop();
 }
 
-/*
- * Pulse counterclockwise a short distance using time
- */
 void pulse_counterclockwise(int percent, float seconds) 
 {
     // Set both motors to desired percent
@@ -273,10 +229,8 @@ void pulse_counterclockwise(int percent, float seconds)
     left_motor.Stop();
 }
 
-/* 
- * Use RCS to move to the desired x_coordinate based on the orientation of the AruCo code
- */
-void fix_x(float x_coordinate, int orientation)
+//Use RCS to move to the desired x_coordinate based on the orientation of the AruCo code
+void fix_x(float x_coordinate)
 {
     RCSPose* pose = RCS.RequestPosition();
 
@@ -310,11 +264,8 @@ void fix_x(float x_coordinate, int orientation)
 
 }
 
-
-/* 
- * Use RCS to move to the desired y_coordinate based on the orientation of the QR code
- */
-void fix_y(float y_coordinate, int orientation)
+//Use RCS to move to the desired y_coordinate based on the orientation of the QR code
+void fix_y(float y_coordinate)
 {
 
     RCSPose* pose = RCS.RequestPosition();
@@ -348,9 +299,7 @@ void fix_y(float y_coordinate, int orientation)
     }
 }
 
-/* 
- * Use RCS to move to the desired heading
- */
+//Use RCS to move to the desired heading
 void fix_heading(float heading)
 {
 
@@ -376,21 +325,39 @@ void fix_heading(float heading)
 
 }
 
+void waitForStart(float timeout){
+    float startTime = TimeNow();
+    while(abs(cds.Value() - CDS_RED_LIGHT) > 0.05 && (TimeNow() - startTime) < timeout){
+        Sleep(0.01);
+    }
+}
+
+void printCDSValues(){
+    while(true){
+        LCD.Write(cds.Value());
+        Sleep(0.1);
+        LCD.Clear();
+    }
+}
+
 void ERCMain()
 {
 
     // RCS.DisableRateLimit();
-
     // RCS.InitializeTouchMenu("Z1TESTING");
 
-    int touch_x, touch_y;
+    //FEHFile *fptr = SD.FOpen("test.txt", "w");
 
-    FEHFile *fptr = SD.FOpen("test.txt", "w");
+    int touch_x, touch_y;
 
     LCD.WriteLine("Press Screen to Start");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
-
     LCD.Clear();
 
+    waitForStart(10);
+
+    drive(-12, 0.5);
+
+    drive(12, 0.5);
 }
