@@ -11,7 +11,8 @@
 #define PULSE_TIME 0.03
 #define PULSE_POWER 35
 #define RCS_WAIT_TIME_IN_SEC 0.1
-#define CDS_RED_LIGHT 0.25
+#define CDS_RED_LIGHT 0.27 //these values are good for no filter
+#define CDS_BLUE_LIGHT 1.22
 
 DigitalEncoder right_encoder(FEHIO::Pin8);
 DigitalEncoder left_encoder(FEHIO::Pin9);
@@ -338,6 +339,27 @@ void printCDSValues(){
         Sleep(0.1);
         LCD.Clear();
     }
+}
+
+//Returns 1 for red, 2 for blue, -1 if timed out
+int waitForHumidifierLight(float timeout){
+    float startTime = TimeNow();
+    while((TimeNow() - startTime) < timeout){
+
+        if(abs(cds.Value() - CDS_RED_LIGHT) < 0.05){
+            LCD.SetBackgroundColor(RED);
+            return 1;
+        }
+
+        if(abs(cds.Value() - CDS_BLUE_LIGHT) < 0.05){
+            LCD.SetBackgroundColor(BLUE);
+            return 2;
+        }
+
+        Sleep(0.01);
+    }
+
+    return -1;
 }
 
 void ERCMain()
