@@ -2,10 +2,15 @@
 #include <FEHIO.h>
 #include <FEHUtility.h>
 #include <FEHMotor.h>
+#include <FEHRCS.h>
+#include <FEHSD.h>
 
 #define COUNTS_PER_INCH 40.489
 #define TRACK_WIDTH_INCHES 7.375
 #define MAX_VEL 24
+#define PULSE_TIME 0.03
+#define PULSE_POWER 35
+#define RCS_WAIT_TIME_IN_SEC 0.1
 
 DigitalEncoder right_encoder(FEHIO::Pin8);
 DigitalEncoder left_encoder(FEHIO::Pin9);
@@ -234,23 +239,158 @@ void getMaxVelocities(){
     left_motor.SetPercent(0);
 }
 
+/*
+ * Pulse forward a short distance using time
+ */
+void pulse_forward(int percent, float seconds) 
+{
+    // Set both motors to desired percent
+    right_motor.SetPercent(percent);
+    left_motor.SetPercent(percent);
+
+    // Wait for the correct number of seconds
+    Sleep(seconds);
+
+    // Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+}
+
+/*
+ * Pulse counterclockwise a short distance using time
+ */
+void pulse_counterclockwise(int percent, float seconds) 
+{
+    // Set both motors to desired percent
+    right_motor.SetPercent(percent);
+    left_motor.SetPercent(-percent);
+
+    // Wait for the correct number of seconds
+    Sleep(seconds);
+
+    // Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+}
+
+/* 
+ * Use RCS to move to the desired x_coordinate based on the orientation of the AruCo code
+ */
+void fix_x(float x_coordinate, int orientation)
+{
+    RCSPose* pose = RCS.RequestPosition();
+
+    float error = abs(pose->x - x_coordinate);
+
+    int headingFix = 1;
+
+    if(pose->heading > 90 && pose->heading < 270){ //facing x = 0 direction (left)
+        headingFix = -1;
+    }
+
+    int fixCounts = 0;
+
+    while(error > 1 && fixCounts < 10)
+    {
+        if(pose->x > 0){
+            if(pose->x > x_coordinate)
+            {
+                pulse_forward(-PULSE_POWER * headingFix, PULSE_TIME);
+            }
+            else if(pose->x < x_coordinate)
+            {
+                pulse_forward(PULSE_POWER * headingFix, PULSE_TIME);
+            }
+            fixCounts++;
+        }
+        Sleep(RCS_WAIT_TIME_IN_SEC);
+        pose = RCS.RequestPosition();
+        error = abs(pose->x - x_coordinate);
+    }
+
+}
+
+
+/* 
+ * Use RCS to move to the desired y_coordinate based on the orientation of the QR code
+ */
+void fix_y(float y_coordinate, int orientation)
+{
+
+    RCSPose* pose = RCS.RequestPosition();
+
+    float error = abs(pose->y - y_coordinate);
+
+    int headingFix = -1;
+
+    if(pose->heading < 180){ //facing up
+        headingFix = 1;
+    }
+
+    int fixCounts = 0;
+
+    while(error > 1 && fixCounts < 10)
+    {
+        if(pose->y > 0){
+            if(pose->y > y_coordinate)
+            {
+                pulse_forward(-PULSE_POWER * headingFix, PULSE_TIME);
+            }
+            else if(pose->y < y_coordinate)
+            {
+                pulse_forward(PULSE_POWER * headingFix, PULSE_TIME);
+            }
+            fixCounts++;
+        }
+        Sleep(RCS_WAIT_TIME_IN_SEC);
+        pose = RCS.RequestPosition();
+        error = abs(pose->y - y_coordinate);
+    }
+}
+
+/* 
+ * Use RCS to move to the desired heading
+ */
+void fix_heading(float heading)
+{
+
+    RCSPose* pose = RCS.RequestPosition();
+    float curHeading = pose->heading;
+    float error = curHeading - heading;
+
+    while(abs(curHeading - heading) > 5){
+        if(curHeading > 0){
+            if(error < 0){
+                pulse_counterclockwise(PULSE_POWER, PULSE_TIME);
+            }else{
+                pulse_counterclockwise(-PULSE_POWER, PULSE_TIME);
+            }
+            
+        }
+        Sleep(RCS_WAIT_TIME_IN_SEC);
+        pose = RCS.RequestPosition();
+        curHeading = pose->heading;
+        error = curHeading - heading;
+        
+    }
+
+}
+
 void ERCMain()
 {
 
-    int x, y;
+    // RCS.DisableRateLimit();
 
-    LCD.Clear(BLACK);
-    LCD.SetFontColor(WHITE);
+    // RCS.InitializeTouchMenu("Z1TESTING");
 
-    LCD.WriteLine("Touch the screen");
-    while(!LCD.Touch(&x,&y)); //Wait for screen to be pressed
-    while(LCD.Touch(&x,&y)); //Wait for screen to be unpressed
+    int touch_x, touch_y;
+
+    FEHFile *fptr = SD.FOpen("test.txt", "w");
+
+    LCD.WriteLine("Press Screen to Start");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+
     LCD.Clear();
-
-    newDrive(12, 30);
-
-    Sleep(0.25);
-
-    newDrive(-12, 30);
 
 }

@@ -32,51 +32,32 @@ def run_pio(args, check=True):
 
 def fetch_latest_version_from_registry(pkg: str) -> str | None:
     """
-    Uses PlatformIO CLI to search for the package and read its version.
+    Uses PlatformIO Registry API v3 to search for the package and read its version.
     """
     try:
         # We search by owner if the package has an owner prefix, e.g. "osu-eed/ERC2"
         if "/" in pkg:
-            owner = pkg.split("/")[0]
-            query = f"owner:{owner}"
+            owner, pkg_name = pkg.split("/", 1)
+            query = f'owner:"{owner}" "{pkg_name}"'
         else:
-            query = pkg
+            pkg_name = pkg
+            query = f'"{pkg_name}"'
             
-        proc = subprocess.run(
-            [sys.executable, "-m", "platformio", "pkg", "search", query],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False,
-        )
-    except Exception as e:
-        log(f"Could not run pio pkg search ({e}). Skipping auto-update.")
-        return None
-
-    out = proc.stdout or ""
-    
-    # Look for the package name followed by a line containing the version
-    # Example output:
-    # osu-eed/ERC2
-    # Library • 1.3.4 • Published on Thu Feb 26 19:04:39 2026
-    
-    lines = out.splitlines()
-    for i, line in enumerate(lines):
-        if line.strip().lower() == pkg.lower():
-            # The next line should contain the version
-            if i + 1 < len(lines):
-                next_line = lines[i + 1]
-                # Extract version, e.g., "Library • 1.3.4 • Published..."
-                # We can use a regex to find the version number
-                m = re.search(r"•\s*([0-9]+(?:\.[0-9]+)*)\s*•", next_line)
-                if m:
-                    return m.group(1)
-                
-                # Fallback regex if the format is slightly different
-                m2 = re.search(r"([0-9]+\.[0-9]+\.[0-9]+)", next_line)
-                if m2:
-                    return m2.group(1)
+        url = "https://api.registry.platformio.org/v3/search?query=" + urllib.parse.quote(query)
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            
+        # The search returns a list of items. Find the one matching the package name.
+        for item in data.get("items", []):
+            if item.get("name", "").lower() == pkg_name.lower():
+                version_info = item.get("version")
+                if version_info and "name" in version_info:
+                    return version_info["name"]
                     
+    except Exception as e:
+        log(f"Could not fetch version from Registry API ({e}). Skipping auto-update.")
+        
     return None
 
 
