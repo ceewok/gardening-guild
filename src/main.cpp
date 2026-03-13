@@ -14,14 +14,18 @@
 #define CDS_RED_LIGHT 0.27 //these values are good for no filter
 #define CDS_BLUE_LIGHT 1.22
 
-DigitalEncoder right_encoder(FEHIO::Pin8);
+DigitalEncoder right_encoder(FEHIO::Pin8); //black ground, red 3.3
 DigitalEncoder left_encoder(FEHIO::Pin9);
 
 //Right motor has flipped polarity (- percent is forward)
 FEHMotor right_motor(FEHMotor::Motor0,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
-AnalogInputPin cds(FEHIO::Pin0);
+AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
+
+AnalogInputPin leftOpto(FEHIO::Pin5);
+AnalogInputPin midOpto(FEHIO::Pin6);
+AnalogInputPin rightOpto(FEHIO::Pin7);
 
 struct PIDController{
     float previousTime = 0;
@@ -132,7 +136,7 @@ void turn(float power, float degrees){
     rightPIDController.reset();
     leftPIDController.reset();
 
-    if(degrees > 0){ //Turn counterclockwise
+    if(degrees > 0){ //Turn counterclockwise (left)
 
         while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
             right_motor.SetPercent(-1 * (power + rightAdjustment));
@@ -143,7 +147,7 @@ void turn(float power, float degrees){
 
             Sleep(0.05);
         }
-    }else{ //Turn clockwise
+    }else{ //Turn clockwise (right)
         max_counts = max_counts * -1;
 
         while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
@@ -341,18 +345,32 @@ void printCDSValues(){
     }
 }
 
+void printOptoValues(){
+    while(true){
+        LCD.Write(leftOpto.Value());
+        LCD.Write(" ");
+        LCD.Write(midOpto.Value());
+        LCD.Write(" ");
+        LCD.Write(rightOpto.Value());
+        Sleep(0.1);
+        LCD.Clear();
+    }
+}
+
 //Returns 1 for red, 2 for blue, -1 if timed out
 int waitForHumidifierLight(float timeout){
     float startTime = TimeNow();
     while((TimeNow() - startTime) < timeout){
 
         if(abs(cds.Value() - CDS_RED_LIGHT) < 0.05){
-            LCD.SetBackgroundColor(RED);
+            LCD.SetFontColor(RED);
+            LCD.FillRectangle(0,0,1000,1000);
             return 1;
         }
 
         if(abs(cds.Value() - CDS_BLUE_LIGHT) < 0.05){
-            LCD.SetBackgroundColor(BLUE);
+            LCD.SetFontColor(BLUE);
+            LCD.FillRectangle(0,0,1000,1000);
             return 2;
         }
 
@@ -372,14 +390,38 @@ void ERCMain()
 
     int touch_x, touch_y;
 
-    LCD.WriteLine("Press Screen to Start");
+    LCD.WriteLine("Press to start #1 and #2");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
     waitForStart(10);
 
-    drive(-12, 0.5);
+    drive(-12, 1);
 
-    drive(12, 0.5);
+    drive(12, 1);
+
+    turn(25, -45);
+
+    LCD.WriteLine("Press to start #3");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    LCD.Clear();
+
+    drive(12, 36);
+
+    LCD.WriteLine("Press to start #4, #5, and #6");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    LCD.Clear();
+
+    int light = waitForHumidifierLight(10);
+    drive(12, 4);
+
+    if(light == 1){
+        turn(50, 90);
+    }
+    if(light == 2){
+        turn(50, -90);
+    }
 }
