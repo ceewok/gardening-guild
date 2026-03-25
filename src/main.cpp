@@ -32,7 +32,7 @@ AnalogInputPin rightOpto(FEHIO::Pin5);
 #define MID_BLACK_VOLTAGE 4.24
 #define RIGHT_WHITE_VOLTAGE 1.34
 #define RIGHT_BLACK_VOLTAGE 3.92
-#define OPTO_ERROR 0.05
+#define OPTO_ERROR 0.03
 #define NO_LINE_FOUND -1
 #define ON_LINE 0
 #define TO_LEFT 1
@@ -115,7 +115,7 @@ void drive(float expectedVelocity, float inches)
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.05);
+            Sleep(0.02);
         }
     }else{
         expectedPower *= -1;
@@ -125,7 +125,7 @@ void drive(float expectedVelocity, float inches)
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.05);
+            Sleep(0.02);
         }
     }
 
@@ -161,8 +161,10 @@ void driveOnLine(float expectedVelocity, float inches){
             leftVal = leftOpto.Value();
             midVal = midOpto.Value();
             rightVal = rightOpto.Value();
+            
+            if(abs(midVal - MID_WHITE_VOLTAGE) < OPTO_ERROR && abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR && abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR){
 
-            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
+            }else if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
             }else if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR || abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR){
@@ -193,9 +195,12 @@ void driveOnLine(float expectedVelocity, float inches){
             leftPIDController.setMotor(expectedVelocity/2, expectedPower/2, 1);
 
             midVal = midOpto.Value();
+            leftVal = leftOpto.Value();
 
             if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
+            }else if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR)){
+                state = TO_RIGHT;
             }
 
             break;
@@ -207,6 +212,8 @@ void driveOnLine(float expectedVelocity, float inches){
 
             if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
+            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR)){
+                state = TO_LEFT;
             }
 
             break;
@@ -214,7 +221,7 @@ void driveOnLine(float expectedVelocity, float inches){
             break;
         }
 
-        Sleep(0.05);
+        Sleep(0.02);
     }
 
     //Turn off motors
