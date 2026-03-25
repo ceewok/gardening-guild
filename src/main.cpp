@@ -15,7 +15,7 @@
 DigitalEncoder right_encoder(FEHIO::Pin8); //black ground, red 3.3
 DigitalEncoder left_encoder(FEHIO::Pin9);
 
-FEHMotor right_motor(FEHMotor::Motor0,9.0);
+FEHMotor right_motor(FEHMotor::Motor1,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
 AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
@@ -26,9 +26,13 @@ AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
 AnalogInputPin leftOpto(FEHIO::Pin7); //more light = lower voltage
 AnalogInputPin midOpto(FEHIO::Pin6);
 AnalogInputPin rightOpto(FEHIO::Pin5);
-#define WHITE_VOLTAGE 0
-#define BLACK_VOLTAGE 3.3
-#define OPTO_ERROR 0.15
+#define LEFT_WHITE_VOLTAGE 2.54
+#define LEFT_BLACK_VOLTAGE 4.36
+#define MID_WHITE_VOLTAGE 2.51
+#define MID_BLACK_VOLTAGE 4.24
+#define RIGHT_WHITE_VOLTAGE 1.34
+#define RIGHT_BLACK_VOLTAGE 3.92
+#define OPTO_ERROR 0.05
 #define NO_LINE_FOUND -1
 #define ON_LINE 0
 #define TO_LEFT 1
@@ -142,6 +146,10 @@ void driveOnLine(float expectedVelocity, float inches){
 
     int onLineOffset = 0;
 
+    float leftVal;
+    float midVal;
+    float rightVal;
+
     while((left_encoder.Counts() + right_encoder.Counts() - onLineOffset) / 2 < maxCounts){
 
         switch (state)
@@ -150,17 +158,17 @@ void driveOnLine(float expectedVelocity, float inches){
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            float leftVal = leftOpto.Value();
-            float midVal = midOpto.Value();
-            float rightVal = rightOpto.Value();
+            leftVal = leftOpto.Value();
+            midVal = midOpto.Value();
+            rightVal = rightOpto.Value();
 
-            if((midVal - BLACK_VOLTAGE) < OPTO_ERROR){
+            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
-            }else if((leftVal - BLACK_VOLTAGE) < OPTO_ERROR || (leftVal - WHITE_VOLTAGE) < OPTO_ERROR){
+            }else if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR || abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR){
                 state = TO_RIGHT;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
-            }else if((rightVal - BLACK_VOLTAGE) < OPTO_ERROR || (rightVal - WHITE_VOLTAGE) < OPTO_ERROR){
+            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR || abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR){
                 state = TO_LEFT;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
             }
@@ -170,34 +178,34 @@ void driveOnLine(float expectedVelocity, float inches){
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            float leftVal = leftOpto.Value();
-            float rightVal = rightOpto.Value();
+            leftVal = leftOpto.Value();
+            rightVal = rightOpto.Value();
 
-            if((leftVal - BLACK_VOLTAGE) < OPTO_ERROR){
+            if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR)){
                 state = TO_RIGHT;
-            }else if((rightVal - BLACK_VOLTAGE) < OPTO_ERROR){
+            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR)){
                 state = TO_LEFT;
             }
 
             break;
         case TO_LEFT:
-            rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
-            leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
+            rightPIDController.setMotor(expectedVelocity/2, expectedPower/2, -1);
+            leftPIDController.setMotor(expectedVelocity/2, expectedPower/2, 1);
 
-            float midVal = midOpto.Value();
+            midVal = midOpto.Value();
 
-            if((midVal - BLACK_VOLTAGE) < OPTO_ERROR){
+            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
             }
 
             break;
         case TO_RIGHT:
-            rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
-            leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+            rightPIDController.setMotor(expectedVelocity/2, expectedPower/2, 1);
+            leftPIDController.setMotor(expectedVelocity/2, expectedPower/2, -1);
 
-            float midVal = midOpto.Value();
+            midVal = midOpto.Value();
 
-            if((midVal - BLACK_VOLTAGE) < OPTO_ERROR){
+            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
                 state = ON_LINE;
             }
 
@@ -503,5 +511,5 @@ void ERCMain()
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
-    printCDSValues();
+    driveOnLine(6, 24);
 }
