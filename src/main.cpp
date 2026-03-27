@@ -38,6 +38,12 @@ AnalogInputPin rightOpto(FEHIO::Pin5);
 #define TO_LEFT 1
 #define TO_RIGHT 2
 
+//Pressed = false
+DigitalInputPin FLbumper(FEHIO::Pin1);
+DigitalInputPin FRbumper(FEHIO::Pin2);
+DigitalInputPin BLbumper(FEHIO::Pin3);
+DigitalInputPin BRbumper(FEHIO::Pin4);
+
 struct PIDController{
     float previousTime = 0;
 
@@ -229,6 +235,66 @@ void driveOnLine(float expectedVelocity, float inches){
     left_motor.Stop();
 }
 
+void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
+
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+    float startTime = TimeNow();
+
+    rightPIDController.reset();
+    leftPIDController.reset();
+
+    boolean hitWall = false;
+
+    if(expectedVelocity > 0){
+        while(TimeNow() - startTime < timeout){
+
+            boolean FLPressed = !FLbumper.Value();
+            boolean FRPressed = !FRbumper.Value();
+
+            if(strict){
+                if((FLPressed && FRPressed) && !hitWall)
+                    hitWall = true;
+                    timeout = TimeNow() + startTime + 0.5; //Run for another half second
+            }else{
+                if((FLPressed || FRPressed)  && !hitWall)
+                    hitWall = true;
+                    timeout = TimeNow() + startTime + 0.5;
+            }
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            Sleep(0.02);
+        }
+    }else{
+        expectedPower *= -1;
+        expectedVelocity *= -1;
+        while(TimeNow() - startTime < timeout){
+
+            boolean FLPressed = !FLbumper.Value();
+            boolean FRPressed = !FRbumper.Value();
+
+            if(strict){
+                if((FLPressed && FRPressed) && !hitWall)
+                    hitWall = true;
+                    timeout = TimeNow() + startTime + 0.5;
+            }else{
+                if((FLPressed || FRPressed)  && !hitWall)
+                    hitWall = true;
+                    timeout = TimeNow() + startTime + 0.5;
+            }
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
+
+            Sleep(0.02);
+        }
+    }
+
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+}
 //Turning circle is defined by the track width times pi. to turn 90 degrees, drive the motors 1/4 of the turning circle
 void turn(float expectedVelocity, float degrees){
 
