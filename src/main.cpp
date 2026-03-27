@@ -167,16 +167,25 @@ void driveOnLine(float expectedVelocity, float inches){
             leftVal = leftOpto.Value();
             midVal = midOpto.Value();
             rightVal = rightOpto.Value();
-            
-            if(abs(midVal - MID_WHITE_VOLTAGE) < OPTO_ERROR && abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR && abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR){
 
-            }else if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
+            boolean midSeesWhite = abs(midVal - MID_WHITE_VOLTAGE) < OPTO_ERROR;
+            boolean leftSeesWhite = abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR;
+            boolean rightSeesWhite = abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR;
+
+            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+
+            
+            if(midSeesWhite && leftSeesWhite && rightSeesWhite){
+                //Intentionally empty
+            }else if(midSeesBlack){
                 state = ON_LINE;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
-            }else if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR || abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR){
+            }else if(leftSeesBlack || leftSeesWhite){
                 state = TO_RIGHT;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
-            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR || abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR){
+            }else if(rightSeesBlack || rightSeesWhite){
                 state = TO_LEFT;
                 onLineOffset = left_encoder.Counts() + right_encoder.Counts();
             }
@@ -189,9 +198,12 @@ void driveOnLine(float expectedVelocity, float inches){
             leftVal = leftOpto.Value();
             rightVal = rightOpto.Value();
 
-            if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR)){
+            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+
+            if(leftSeesBlack && !rightSeesBlack){
                 state = TO_RIGHT;
-            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR)){
+            }else if(rightSeesBlack && !leftSeesBlack){
                 state = TO_LEFT;
             }
 
@@ -203,9 +215,13 @@ void driveOnLine(float expectedVelocity, float inches){
             midVal = midOpto.Value();
             leftVal = leftOpto.Value();
 
-            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
+            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+
+            if(midSeesBlack){
                 state = ON_LINE;
-            }else if(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR)){
+            }else if(leftSeesBlack && !rightSeesBlack){
                 state = TO_RIGHT;
             }
 
@@ -216,9 +232,13 @@ void driveOnLine(float expectedVelocity, float inches){
 
             midVal = midOpto.Value();
 
-            if(abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR){
+            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+
+            if(midSeesBlack){
                 state = ON_LINE;
-            }else if(abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR && !(abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR)){
+            }else if(rightSeesBlack && !leftSeesBlack){
                 state = TO_LEFT;
             }
 
