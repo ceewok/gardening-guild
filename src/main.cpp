@@ -4,6 +4,7 @@
 #include <FEHMotor.h>
 #include <FEHRCS.h>
 #include <FEHSD.h>
+#include <FEHServo.h>
 
 #define COUNTS_PER_INCH 40.489
 #define TRACK_WIDTH_INCHES 7.375
@@ -19,7 +20,7 @@ FEHMotor right_motor(FEHMotor::Motor1,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
 AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
-#define CDS_RED_LIGHT 0.22 //these values are good for no filter
+#define CDS_RED_LIGHT 0.22 //these values are good for red filter
 #define CDS_BLUE_LIGHT 0.8
 #define CDS_ERROR 0.15
 
@@ -43,6 +44,8 @@ DigitalInputPin FLbumper(FEHIO::Pin1);
 DigitalInputPin FRbumper(FEHIO::Pin2);
 DigitalInputPin BLbumper(FEHIO::Pin3);
 DigitalInputPin BRbumper(FEHIO::Pin4);
+
+FEHServo armServo(FEHServo::Servo0);
 
 struct PIDController{
     float previousTime = 0;
@@ -106,6 +109,7 @@ struct PIDController{
 PIDController rightPIDController(right_encoder, right_motor);
 PIDController leftPIDController(left_encoder, left_motor);
 
+//negative velocity is backwards
 void drive(float expectedVelocity, float inches)
 {
 
@@ -156,6 +160,14 @@ void driveOnLine(float expectedVelocity, float inches){
     float midVal;
     float rightVal;
 
+    boolean midSeesWhite;
+    boolean leftSeesWhite;
+    boolean rightSeesWhite;
+
+    boolean midSeesBlack;
+    boolean leftSeesBlack;
+    boolean rightSeesBlack;
+
     while((left_encoder.Counts() + right_encoder.Counts() - onLineOffset) / 2 < maxCounts){
 
         switch (state)
@@ -168,13 +180,13 @@ void driveOnLine(float expectedVelocity, float inches){
             midVal = midOpto.Value();
             rightVal = rightOpto.Value();
 
-            boolean midSeesWhite = abs(midVal - MID_WHITE_VOLTAGE) < OPTO_ERROR;
-            boolean leftSeesWhite = abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR;
-            boolean rightSeesWhite = abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR;
+            midSeesWhite = abs(midVal - MID_WHITE_VOLTAGE) < OPTO_ERROR;
+            leftSeesWhite = abs(leftVal - LEFT_WHITE_VOLTAGE) < OPTO_ERROR;
+            rightSeesWhite = abs(rightVal - RIGHT_WHITE_VOLTAGE) < OPTO_ERROR;
 
-            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+            midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
 
             
             if(midSeesWhite && leftSeesWhite && rightSeesWhite){
@@ -198,8 +210,8 @@ void driveOnLine(float expectedVelocity, float inches){
             leftVal = leftOpto.Value();
             rightVal = rightOpto.Value();
 
-            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+            leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
 
             if(leftSeesBlack && !rightSeesBlack){
                 state = TO_RIGHT;
@@ -215,9 +227,9 @@ void driveOnLine(float expectedVelocity, float inches){
             midVal = midOpto.Value();
             leftVal = leftOpto.Value();
 
-            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+            midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
 
             if(midSeesBlack){
                 state = ON_LINE;
@@ -232,9 +244,9 @@ void driveOnLine(float expectedVelocity, float inches){
 
             midVal = midOpto.Value();
 
-            boolean midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
-            boolean rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
+            midSeesBlack = abs(midVal - MID_BLACK_VOLTAGE) < OPTO_ERROR;
+            leftSeesBlack = abs(leftVal - LEFT_BLACK_VOLTAGE) < OPTO_ERROR;
+            rightSeesBlack = abs(rightVal - RIGHT_BLACK_VOLTAGE) < OPTO_ERROR;
 
             if(midSeesBlack){
                 state = ON_LINE;
@@ -263,8 +275,6 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
     rightPIDController.reset();
     leftPIDController.reset();
 
-    boolean hitWall = false;
-
     if(expectedVelocity > 0){
         while(TimeNow() - startTime < timeout){
 
@@ -272,13 +282,13 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
             boolean FRPressed = !FRbumper.Value();
 
             if(strict){
-                if((FLPressed && FRPressed) && !hitWall)
-                    hitWall = true;
-                    timeout = TimeNow() + startTime + 0.5; //Run for another half second
+                if((FLPressed && FRPressed)){
+                    break;
+                }
             }else{
-                if((FLPressed || FRPressed)  && !hitWall)
-                    hitWall = true;
-                    timeout = TimeNow() + startTime + 0.5;
+                if((FLPressed || FRPressed)){
+                    break;
+                }
             }
 
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
@@ -291,17 +301,17 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
         expectedVelocity *= -1;
         while(TimeNow() - startTime < timeout){
 
-            boolean FLPressed = !FLbumper.Value();
-            boolean FRPressed = !FRbumper.Value();
+            boolean BLPressed = !BLbumper.Value();
+            boolean BRPressed = !BRbumper.Value();
 
             if(strict){
-                if((FLPressed && FRPressed) && !hitWall)
-                    hitWall = true;
-                    timeout = TimeNow() + startTime + 0.5;
+                if((BLPressed && BRPressed)){
+                    break;
+                }
             }else{
-                if((FLPressed || FRPressed)  && !hitWall)
-                    hitWall = true;
-                    timeout = TimeNow() + startTime + 0.5;
+                if((BLPressed || BRPressed)){
+                    break;
+                }
             }
 
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
@@ -315,13 +325,14 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
     right_motor.Stop();
     left_motor.Stop();
 }
-//Turning circle is defined by the track width times pi. to turn 90 degrees, drive the motors 1/4 of the turning circle
-void turn(float expectedVelocity, float degrees){
+
+//turn in the center of the wheels, positive = left
+void centerAxisTurn(float expectedVelocity, float degrees){
 
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.17;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -335,7 +346,7 @@ void turn(float expectedVelocity, float degrees){
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.05);
+            Sleep(0.02);
         }
     }else{ //Turn clockwise (right)
         max_counts = max_counts * -1;
@@ -345,12 +356,82 @@ void turn(float expectedVelocity, float degrees){
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.05);
+            Sleep(0.02);
         }
     }
 
     left_motor.Stop();
     right_motor.Stop();
+
+}
+
+//turn on the left wheel, positive = left
+void leftAxisTurn(float expectedVelocity, float degrees){
+
+    float turn_ratio = degrees / 360;
+    float full_circumference = TRACK_WIDTH_INCHES * PI;
+    float drive_inches = full_circumference * turn_ratio * 2;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
+
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+
+    rightPIDController.reset();
+
+    if(degrees > 0){ //Turn counterclockwise (left)
+
+        while((right_encoder.Counts()) < max_counts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            Sleep(0.02);
+        }
+    }else{ //Turn clockwise (right)
+        max_counts = max_counts * -1;
+
+        while((right_encoder.Counts())< max_counts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
+
+            Sleep(0.02);
+        }
+    }
+
+    right_motor.Stop();
+
+}
+
+//turn on the right wheel, positive degree = left
+void rightAxisTurn(float expectedVelocity, float degrees){
+
+    float turn_ratio = degrees / 360;
+    float full_circumference = TRACK_WIDTH_INCHES * PI;
+    float drive_inches = full_circumference * turn_ratio * 2;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
+
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+
+    leftPIDController.reset();
+
+    if(degrees > 0){ //Turn counterclockwise (left)
+
+        while((left_encoder.Counts()) < max_counts){
+
+            leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            Sleep(0.02);
+        }
+    }else{ //Turn clockwise (right)
+        max_counts = max_counts * -1;
+
+        while((left_encoder.Counts())< max_counts){
+
+            leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
+
+            Sleep(0.02);
+        }
+    }
+
+    left_motor.Stop();
 
 }
 
@@ -563,6 +644,16 @@ void printRCSValues(){
     }
 }
 
+void printBumperValues(){
+    while(true){
+        LCD.Write(FRbumper.Value());
+        LCD.Write(" ");
+        LCD.Write(FLbumper.Value());
+        Sleep(0.1);
+        LCD.Clear();
+    }
+}
+
 //Returns 1 for red, 2 for blue, -1 if timed out
 int waitForHumidifierLight(float timeout){
     float startTime = TimeNow();
@@ -591,7 +682,8 @@ int waitForHumidifierLight(float timeout){
 
 void ERCMain()
 {
-
+    armServo.SetMin(500);
+    armServo.SetMax(2500);
     // RCS.DisableRateLimit();
     // RCS.InitializeTouchMenu("Z1TESTING");
 
@@ -604,5 +696,32 @@ void ERCMain()
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
-    driveOnLine(6, 24);
+    drive(8, 8);
+
+    driveOnLine(8, 12);
+
+    //Pick up apple bucket
+
+    Sleep(1.0);
+
+    centerAxisTurn(8, 180);
+
+    driveTilCollision(12, 5, true);
+
+    drive(8, 1.0);
+
+    drive(-8, 3);
+
+    leftAxisTurn(6, 90);
+
+    driveOnLine(8, 14);
+
+    drive(8, 7.5);
+    
+    centerAxisTurn(8, -90);
+
+    driveTilCollision(12, 5, false);
+
+    //Drop off apple bucket
+
 }
