@@ -7,7 +7,7 @@
 #include <FEHServo.h>
 
 #define COUNTS_PER_INCH 40.489
-#define TRACK_WIDTH_INCHES 7.375
+#define TRACK_WIDTH_INCHES 7.25
 #define MAX_VEL 24
 #define PULSE_TIME 0.03
 #define PULSE_POWER 35
@@ -46,6 +46,13 @@ DigitalInputPin BLbumper(FEHIO::Pin3);
 DigitalInputPin BRbumper(FEHIO::Pin4);
 
 FEHServo armServo(FEHServo::Servo0);
+#define BUCKET_PICK_UP_DEGREE 110
+#define BUCKET_CARRY_DEGREE 38
+#define TABLE_DROP_DEGREE 80
+#define LEVER_OVER_DEGREE 38
+#define LEVER_FLICK_DOWN_DEGREE 95
+#define LEVER_UNDER_DEGREE 105
+#define LEVER_FLICK_UP_DEGREE 72
 
 struct PIDController{
     float previousTime = 0;
@@ -332,7 +339,7 @@ void centerAxisTurn(float expectedVelocity, float degrees){
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -654,6 +661,49 @@ void printBumperValues(){
     }
 }
 
+void servoDebug(){
+    LCD.Clear();
+    int degree = 0;
+    int lastDegree = -1;
+    int height = 40;
+    int width = 150;
+    int centerPosition = 319/2 - width/2;
+
+    LCD.DrawRectangle(centerPosition, 10, width, height);
+    LCD.WriteAt(degree, centerPosition + width/2, 10 + height/2);
+    LCD.DrawRectangle(centerPosition, 70, width, height);
+    LCD.WriteAt("Degree Up", centerPosition, 70 + height/2);
+    LCD.DrawRectangle(centerPosition, 130, width, height);
+    LCD.WriteAt("Degree Down", centerPosition, 130 + height/2);
+
+    int x,y;
+
+    while(true){
+        if(degree != lastDegree){
+            lastDegree = degree;
+            armServo.SetDegree(degree);
+            LCD.SetFontColor(BLACK);
+            LCD.FillRectangle(centerPosition + 5, 15, width - 10, height - 10);
+            LCD.SetFontColor(WHITE);
+            LCD.WriteAt(degree, centerPosition + width/2, 10 + height/2);
+        }
+        if(LCD.Touch(&x, &y)){
+
+            if(x > centerPosition && x < centerPosition + width){
+
+                if(y > 70 && y < 70 + height && degree < 180){ //Up
+                    degree = degree + 1;
+                }
+                if(y > 130 && y < 130 + height && degree > 0){ //down
+                    degree = degree - 1;
+                }
+
+            }
+
+        }
+    }
+}
+
 //Returns 1 for red, 2 for blue, -1 if timed out
 int waitForHumidifierLight(float timeout){
     float startTime = TimeNow();
@@ -696,32 +746,29 @@ void ERCMain()
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
+    armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
     drive(8, 8);
 
     driveOnLine(8, 12);
 
-    //Pick up apple bucket
+    armServo.SetDegree(BUCKET_CARRY_DEGREE);
 
     Sleep(1.0);
 
-    centerAxisTurn(8, 180);
+    driveTilCollision(-12, 5, true);
 
-    driveTilCollision(12, 5, true);
+    drive(-8, 1.0);
 
-    drive(8, 1.0);
+    drive(8, 3);
 
-    drive(-8, 3);
-
-    leftAxisTurn(6, 90);
-
-    driveOnLine(8, 14);
-
-    drive(8, 7.5);
-    
-    centerAxisTurn(8, -90);
+    centerAxisTurn(6, -90);
 
     driveTilCollision(12, 5, false);
 
-    //Drop off apple bucket
+    armServo.SetDegree(TABLE_DROP_DEGREE);
+
+    drive(-8, 3);
+
+    centerAxisTurn(6, 90);
 
 }
