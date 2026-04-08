@@ -132,7 +132,7 @@ void drive(float expectedVelocity, float inches)
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }else{
         expectedPower *= -1;
@@ -142,7 +142,7 @@ void drive(float expectedVelocity, float inches)
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }
 
@@ -266,7 +266,7 @@ void driveOnLine(float expectedVelocity, float inches){
             break;
         }
 
-        Sleep(0.02);
+        Sleep(0.01);
     }
 
     //Turn off motors
@@ -301,7 +301,7 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }else{
         expectedPower *= -1;
@@ -324,7 +324,7 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }
 
@@ -353,7 +353,7 @@ void centerAxisTurn(float expectedVelocity, float degrees){
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }else{ //Turn clockwise (right)
         max_counts = max_counts * -1;
@@ -363,7 +363,7 @@ void centerAxisTurn(float expectedVelocity, float degrees){
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }
 
@@ -378,7 +378,7 @@ void leftAxisTurn(float expectedVelocity, float degrees){
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio * 2;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -390,7 +390,7 @@ void leftAxisTurn(float expectedVelocity, float degrees){
 
             rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }else{ //Turn clockwise (right)
         max_counts = max_counts * -1;
@@ -399,7 +399,7 @@ void leftAxisTurn(float expectedVelocity, float degrees){
 
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }
 
@@ -407,34 +407,34 @@ void leftAxisTurn(float expectedVelocity, float degrees){
 
 }
 
-//turn on the right wheel, positive degree = left
+//turn on the right wheel, positive degree = right
 void rightAxisTurn(float expectedVelocity, float degrees){
 
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio * 2;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.16;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
     leftPIDController.reset();
 
-    if(degrees > 0){ //Turn counterclockwise (left)
+    if(degrees > 0){ //Turn clockwise (right)
 
         while((left_encoder.Counts()) < max_counts){
 
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
-    }else{ //Turn clockwise (right)
+    }else{ //Turn counterclockwise (left)
         max_counts = max_counts * -1;
 
         while((left_encoder.Counts())< max_counts){
 
             leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
 
-            Sleep(0.02);
+            Sleep(0.01);
         }
     }
 
@@ -730,10 +730,35 @@ int waitForHumidifierLight(float timeout){
     return -1;
 }
 
+void slowSetDegree(int targetDegree, int currentDegree, float timeout){
+    int deg = currentDegree;
+    while(true){
+        if(targetDegree < currentDegree){
+            if(abs(deg - targetDegree) < 10){
+                armServo.SetDegree(targetDegree);
+                break;
+            }else{
+                deg -= 3;
+                armServo.SetDegree(deg);
+            }
+        }else{
+            if(abs(deg - targetDegree) < 10){
+                armServo.SetDegree(targetDegree);
+                break;
+            }else{
+                deg += 3;
+                armServo.SetDegree(deg);
+            }
+        }
+        Sleep(timeout);
+    }
+}
+
 void ERCMain()
 {
     armServo.SetMin(500);
     armServo.SetMax(2500);
+    armServo.SetDegree(0);
     // RCS.DisableRateLimit();
     // RCS.InitializeTouchMenu("Z1TESTING");
 
@@ -746,29 +771,57 @@ void ERCMain()
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
-    armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
-    drive(8, 8);
+    
 
-    driveOnLine(8, 12);
+    drive(8, 23);
 
-    armServo.SetDegree(BUCKET_CARRY_DEGREE);
+    centerAxisTurn(6, 45);
 
-    Sleep(1.0);
+    drive(-8, 7);
+    armServo.SetDegree(BUCKET_PICK_UP_DEGREE + 10);
+    Sleep(0.25);
 
-    driveTilCollision(-12, 5, true);
+    drive(8, 4);
+    Sleep(0.25);
+    drive(4, -2);
+    centerAxisTurn(6, -45);
+    drive(-4, 5);
+    centerAxisTurn(6, 45);
+
+    driveTilCollision(-12, 5, false);
 
     drive(-8, 1.0);
 
-    drive(8, 3);
+    drive(8, 1);
 
-    centerAxisTurn(6, -90);
+    rightAxisTurn(6, 90);
+    armServo.SetDegree(LEVER_OVER_DEGREE);
+
+    driveTilCollision(12, 5, false);
+    
+    drive(-6, 3);
+
+    leftAxisTurn(6, 90);
 
     driveTilCollision(12, 5, false);
 
-    armServo.SetDegree(TABLE_DROP_DEGREE);
+    drive(-6, 4.5);
 
-    drive(-8, 3);
+    leftAxisTurn(6, -45);
 
-    centerAxisTurn(6, 90);
+    drive(6, 6);
+
+    armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+    Sleep(0.25);
+
+    drive(-4, 3);
+
+    armServo.SetDegree(LEVER_UNDER_DEGREE);
+    Sleep(0.25);
+
+    drive(4, 4.5);
+
+    armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+    Sleep(0.25);
 
 }
