@@ -758,7 +758,7 @@ void slowSetDegree(int targetDegree, int currentDegree, float timeout){
     }
 }
 
-void getPosition(float *x, float *y, float *heading, int retries){
+bool getPosition(float *x, float *y, float *heading, int retries){
     int tries = 0;
     while(tries < retries){
         tries++;
@@ -767,9 +767,10 @@ void getPosition(float *x, float *y, float *heading, int retries){
             *x = pose->x;
             *y = pose->y;
             *heading = pose->heading;
-            break;
+            return true;
         }
     }
+    return false;
 }
 
 float wrapAngle(float angle) {
@@ -781,12 +782,12 @@ float wrapAngle(float angle) {
 void fixPosition(float expectedX, float expectedY, float expectedHeading){
 
     float x,y,heading;
-    getPosition(&x,&y,&heading,2);
+    if (!getPosition(&x,&y,&heading,2)) return;
 
     float dx = expectedX - x;
     float dy = expectedY - y;
     float dist = hypot(dx, dy);
-    float targetAngle = atan2(dy, dx) * (180/PI) + 180;
+    float targetAngle = atan2(dy, dx) * (180.0/PI);
 
     float forwardTurn = wrapAngle(targetAngle - heading);
     
@@ -800,7 +801,7 @@ void fixPosition(float expectedX, float expectedY, float expectedHeading){
 
     }else{
         centerAxisTurn(6, backwardTurn);
-        heading = targetAngle + 180;
+        heading = wrapAngle(targetAngle + 180);
         drive(-6, dist);
     }
 
@@ -816,8 +817,10 @@ void ERCMain()
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
-    // RCS.DisableRateLimit();
-    // RCS.InitializeTouchMenu("0910B9LKI");
+    RCS.DisableRateLimit();
+    RCS.InitializeTouchMenu("0910B9LKI");
+
+    fixPosition(20, 20, 0);
 
     //FEHFile *fptr = SD.FOpen("test.txt", "w");
 
