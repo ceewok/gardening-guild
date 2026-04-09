@@ -54,6 +54,10 @@ FEHServo armServo(FEHServo::Servo0);
 #define LEVER_UNDER_DEGREE 105
 #define LEVER_FLICK_UP_DEGREE 72
 
+FEHMotor compostMotor(FEHMotor::Motor2, 5.0);
+
+FEHServo windowServo(FEHServo::Servo7);
+
 struct PIDController{
     float previousTime = 0;
 
@@ -333,7 +337,7 @@ void driveTilCollision(float expectedVelocity, float timeout, boolean strict){
     left_motor.Stop();
 }
 
-//turn in the center of the wheels, positive = left
+//turn in the center of the wheels, positive degree = left
 void centerAxisTurn(float expectedVelocity, float degrees){
 
     float turn_ratio = degrees / 360;
@@ -372,7 +376,7 @@ void centerAxisTurn(float expectedVelocity, float degrees){
 
 }
 
-//turn on the left wheel, positive = left
+//turn on the left wheel, positive degree = left
 void leftAxisTurn(float expectedVelocity, float degrees){
 
     float turn_ratio = degrees / 360;
@@ -756,11 +760,13 @@ void slowSetDegree(int targetDegree, int currentDegree, float timeout){
 
 void ERCMain()
 {
+    windowServo.SetMin(600);
+    windowServo.SetMax(2150);
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
     // RCS.DisableRateLimit();
-    // RCS.InitializeTouchMenu("Z1TESTING");
+    // RCS.InitializeTouchMenu("0910B9LKI");
 
     //FEHFile *fptr = SD.FOpen("test.txt", "w");
 
@@ -771,57 +777,14 @@ void ERCMain()
     while (LCD.Touch(&touch_x, &touch_y));
     LCD.Clear();
 
-    
+    waitForStart(10);
 
-    drive(8, 23);
+    drive(12, -1);
 
-    centerAxisTurn(6, 45);
+    drive(8, 13);
 
-    drive(-8, 7);
-    armServo.SetDegree(BUCKET_PICK_UP_DEGREE + 10);
-    Sleep(0.25);
-
-    drive(8, 4);
-    Sleep(0.25);
-    drive(4, -2);
     centerAxisTurn(6, -45);
-    drive(-4, 5);
-    centerAxisTurn(6, 45);
 
-    driveTilCollision(-12, 5, false);
-
-    drive(-8, 1.0);
-
-    drive(8, 1);
-
-    rightAxisTurn(6, 90);
-    armServo.SetDegree(LEVER_OVER_DEGREE);
-
-    driveTilCollision(12, 5, false);
-    
-    drive(-6, 3);
-
-    leftAxisTurn(6, 90);
-
-    driveTilCollision(12, 5, false);
-
-    drive(-6, 4.5);
-
-    leftAxisTurn(6, -45);
-
-    drive(6, 6);
-
-    armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
-    Sleep(0.25);
-
-    drive(-4, 3);
-
-    armServo.SetDegree(LEVER_UNDER_DEGREE);
-    Sleep(0.25);
-
-    drive(4, 4.5);
-
-    armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
-    Sleep(0.25);
+    driveTilCollision(-8, 3, true);
 
 }
