@@ -758,6 +758,57 @@ void slowSetDegree(int targetDegree, int currentDegree, float timeout){
     }
 }
 
+void getPosition(float *x, float *y, float *heading, int retries){
+    int tries = 0;
+    while(tries < retries){
+        tries++;
+        RCSPose* pose = RCS.RequestPosition();
+        if(pose != nullptr){
+            *x = pose->x;
+            *y = pose->y;
+            *heading = pose->heading;
+            break;
+        }
+    }
+}
+
+float wrapAngle(float angle) {
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    return angle;
+}
+
+void fixPosition(float expectedX, float expectedY, float expectedHeading){
+
+    float x,y,heading;
+    getPosition(&x,&y,&heading,2);
+
+    float dx = expectedX - x;
+    float dy = expectedY - y;
+    float dist = hypot(dx, dy);
+    float targetAngle = atan2(dy, dx) * (180/PI) + 180;
+
+    float forwardTurn = wrapAngle(targetAngle - heading);
+    
+    float backwardTurn = wrapAngle((targetAngle + 180) - heading);
+
+    //front heading is closer to the required angle
+    if(abs(forwardTurn) < abs(backwardTurn)){
+        centerAxisTurn(6, forwardTurn);
+        heading = targetAngle;
+        drive(6, dist);
+
+    }else{
+        centerAxisTurn(6, backwardTurn);
+        heading = targetAngle + 180;
+        drive(-6, dist);
+    }
+
+    float finalTurn = wrapAngle(expectedHeading - heading);
+    centerAxisTurn(6, finalTurn);
+
+}
+
 void ERCMain()
 {
     windowServo.SetMin(600);
