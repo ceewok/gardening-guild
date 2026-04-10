@@ -779,10 +779,11 @@ float wrapAngle(float angle) {
     return angle;
 }
 
-void fixPosition(float expectedX, float expectedY, float expectedHeading){
+bool fixPosition(float expectedX, float expectedY, float expectedHeading){
 
     float x,y,heading;
-    if (!getPosition(&x,&y,&heading,2)) return;
+    if (!getPosition(&x,&y,&heading,2)) return false;
+    if (x < 0 || y < 0 || heading < 0) return false;
 
     float dx = expectedX - x;
     float dy = expectedY - y;
@@ -793,12 +794,10 @@ void fixPosition(float expectedX, float expectedY, float expectedHeading){
     
     float backwardTurn = wrapAngle((targetAngle + 180) - heading);
 
-    //front heading is closer to the required angle
     if(abs(forwardTurn) < abs(backwardTurn)){
         centerAxisTurn(6, forwardTurn);
         heading = targetAngle;
         drive(6, dist);
-
     }else{
         centerAxisTurn(6, backwardTurn);
         heading = wrapAngle(targetAngle + 180);
@@ -808,6 +807,7 @@ void fixPosition(float expectedX, float expectedY, float expectedHeading){
     float finalTurn = wrapAngle(expectedHeading - heading);
     centerAxisTurn(6, finalTurn);
 
+    return true;
 }
 
 void ERCMain()
@@ -817,10 +817,8 @@ void ERCMain()
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
-    RCS.DisableRateLimit();
-    RCS.InitializeTouchMenu("0910B9LKI");
-
-    fixPosition(20, 20, 0);
+    // RCS.DisableRateLimit();
+    // RCS.InitializeTouchMenu("0910B9LKI");
 
     //FEHFile *fptr = SD.FOpen("test.txt", "w");
 
@@ -833,12 +831,32 @@ void ERCMain()
 
     waitForStart(10);
 
-    drive(12, -1);
+    drive(-12, 1);
 
-    drive(8, 13);
+    drive(8, 15);
 
     centerAxisTurn(6, -45);
 
     driveTilCollision(-8, 3, true);
+
+    rightAxisTurn(6, 90);
+
+    leftAxisTurn(6, 3);
+
+    drive(-4, 15);
+
+    compostMotor.SetPercent(-80);
+
+    Sleep(1.5);
+
+    compostMotor.SetPercent(80);
+
+    Sleep(1.5);
+
+    compostMotor.SetPercent(-20);
+    Sleep(0.5);
+
+    drive(12, 18);
+    compostMotor.Stop();
 
 }
