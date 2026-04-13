@@ -5,6 +5,7 @@
 #include <FEHRCS.h>
 #include <FEHSD.h>
 #include <FEHServo.h>
+#include "FEHBuzzer.h"
 
 #define COUNTS_PER_INCH 40.489
 #define TRACK_WIDTH_INCHES 7.25
@@ -57,6 +58,28 @@ FEHServo armServo(FEHServo::Servo0);
 FEHMotor compostMotor(FEHMotor::Motor2, 5.0);
 
 FEHServo windowServo(FEHServo::Servo7);
+
+struct coordinate{
+    float x = 0;
+    float y = 0;
+    float h = 0;
+
+    coordinate(float x, float y, float h){
+        this->x = x;
+        this->y = y;
+        this->h = h;
+    }
+
+    void set(float x, float y, float h){
+        this->x = x;
+        this->y = y;
+        this->h = h;
+    }
+
+    bool go(){
+        return fixPosition(x, y, h);
+    }
+};
 
 struct PIDController{
     float previousTime = 0;
@@ -411,7 +434,7 @@ void leftAxisTurn(float expectedVelocity, float degrees){
 
 }
 
-//turn on the right wheel, positive degree = right
+//turn on the right wheel, positive degree = left
 void rightAxisTurn(float expectedVelocity, float degrees){
 
     float turn_ratio = degrees / 360;
@@ -783,16 +806,33 @@ bool fixPosition(float expectedX, float expectedY, float expectedHeading){
 
     float x,y,heading;
     if (!getPosition(&x,&y,&heading,2)) return false;
-    if (x < 0 || y < 0 || heading < 0) return false;
+    if (x < 0 || y < 0) return false;
+
+    LCD.Write(x);
+    LCD.Write(" ");
+    LCD.Write(y);
+    LCD.Write(" ");
+    LCD.Write(heading);
+    LCD.WriteLine(" ");
 
     float dx = expectedX - x;
     float dy = expectedY - y;
     float dist = hypot(dx, dy);
-    float targetAngle = atan2(dy, dx) * (180.0/PI);
+    float mathAngle = atan2(dy, dx) * (180.0/PI);
+    float targetAngle = wrapAngle(mathAngle- 90);
+
+    LCD.Write(dist);
+    LCD.Write(" ");
+    LCD.Write(targetAngle);
+    LCD.Write(" ");
 
     float forwardTurn = wrapAngle(targetAngle - heading);
-    
     float backwardTurn = wrapAngle((targetAngle + 180) - heading);
+
+    LCD.Write(forwardTurn);
+    LCD.Write(" ");
+    LCD.Write(backwardTurn);
+    LCD.WriteLine(" ");
 
     if(abs(forwardTurn) < abs(backwardTurn)){
         centerAxisTurn(6, forwardTurn);
@@ -807,7 +847,49 @@ bool fixPosition(float expectedX, float expectedY, float expectedHeading){
     float finalTurn = wrapAngle(expectedHeading - heading);
     centerAxisTurn(6, finalTurn);
 
+    LCD.Write(finalTurn);
     return true;
+}
+coordinate appleBucket(0,0,0);
+coordinate table(0,0,0);
+coordinate window(0,0,0);
+coordinate humidifier(0,0,0);
+
+void getRCSCourseValues(){
+    int touch_x,touch_y;
+    float x,y,heading;
+
+    LCD.WriteLine("Apple bucket");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    getPosition(&x,&y,&heading,10);
+    appleBucket.set(x, y, heading);
+    Buzzer.Beep();
+    LCD.Clear();
+
+    LCD.WriteLine("Table");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    getPosition(&x,&y,&heading,10);
+    table.set(x, y, heading);
+    Buzzer.Beep();
+    LCD.Clear();
+
+    LCD.WriteLine("Window");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    getPosition(&x,&y,&heading,10);
+    window.set(x, y, heading);
+    Buzzer.Beep();
+    LCD.Clear();
+
+    LCD.WriteLine("Humidifier");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    getPosition(&x,&y,&heading,10);
+    humidifier.set(x, y, heading);
+    Buzzer.Beep();
+    LCD.Clear();
 }
 
 void ERCMain()
@@ -818,18 +900,14 @@ void ERCMain()
     armServo.SetMax(2500);
     armServo.SetDegree(0);
     // RCS.DisableRateLimit();
-    // RCS.InitializeTouchMenu("0910B9LKI");
+    RCS.InitializeTouchMenu("0910B9LKI");
 
     //FEHFile *fptr = SD.FOpen("test.txt", "w");
+    fixPosition(15, 18, 0);
 
-    int touch_x, touch_y;
+    WaitForFinalAction();
 
-    LCD.WriteLine("Press to start");
-    while (!LCD.Touch(&touch_x, &touch_y));
-    while (LCD.Touch(&touch_x, &touch_y));
-    LCD.Clear();
-
-    waitForStart(10);
+    waitForStart(30);
 
     drive(-12, 1);
 

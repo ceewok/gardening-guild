@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 # To use developer mode, set DEVELOPER_MODE = True
 # This will prevent files from getting overwritten
-# Also, update platformio.ini to point to your local 
+# Also, update platformio.ini to point to your local
 # ERC2 library directory. For example:
-# lib_deps = 
+# lib_deps =
 #    symlink://../erc2firmwaresource/
 DEVELOPER_MODE = False
 

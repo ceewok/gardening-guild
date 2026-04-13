@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 PlatformIO pre-upload script — release_serial_port.py
 
