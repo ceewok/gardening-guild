@@ -855,7 +855,7 @@ coordinate table(0,0,0);
 coordinate window(0,0,0);
 coordinate humidifier(0,0,0);
 
-void getRCSCourseValues(){
+void initRCSCoordinates(){
     int touch_x,touch_y;
     float x,y,heading;
 
@@ -866,6 +866,7 @@ void getRCSCourseValues(){
     appleBucket.set(x, y, heading);
     Buzzer.Beep();
     LCD.Clear();
+    Sleep(1.0);
 
     LCD.WriteLine("Table");
     while (!LCD.Touch(&touch_x, &touch_y));
@@ -874,6 +875,7 @@ void getRCSCourseValues(){
     table.set(x, y, heading);
     Buzzer.Beep();
     LCD.Clear();
+    Sleep(1.0);
 
     LCD.WriteLine("Window");
     while (!LCD.Touch(&touch_x, &touch_y));
@@ -882,6 +884,7 @@ void getRCSCourseValues(){
     window.set(x, y, heading);
     Buzzer.Beep();
     LCD.Clear();
+    Sleep(1.0);
 
     LCD.WriteLine("Humidifier");
     while (!LCD.Touch(&touch_x, &touch_y));
@@ -892,23 +895,7 @@ void getRCSCourseValues(){
     LCD.Clear();
 }
 
-void ERCMain()
-{
-    windowServo.SetMin(600);
-    windowServo.SetMax(2150);
-    armServo.SetMin(500);
-    armServo.SetMax(2500);
-    armServo.SetDegree(0);
-    // RCS.DisableRateLimit();
-    RCS.InitializeTouchMenu("0910B9LKI");
-
-    //FEHFile *fptr = SD.FOpen("test.txt", "w");
-    fixPosition(15, 18, 0);
-
-    WaitForFinalAction();
-
-    waitForStart(30);
-
+void task_ComposterFromStart(){
     drive(-12, 1);
 
     drive(8, 15);
@@ -934,7 +921,27 @@ void ERCMain()
     compostMotor.SetPercent(-20);
     Sleep(0.5);
 
-    drive(12, 18);
+    drive(12, 6);
     compostMotor.Stop();
+}
+
+void ERCMain()
+{
+    windowServo.SetMin(600);
+    windowServo.SetMax(2150);
+    windowServo.SetDegree(0);
+    armServo.SetMin(500);
+    armServo.SetMax(2500);
+    armServo.SetDegree(0);
+    // RCS.DisableRateLimit();
+    RCS.InitializeTouchMenu("0910B9LKI");
+
+    //FEHFile *fptr = SD.FOpen("test.txt", "w");
+
+    WaitForFinalAction();
+
+    waitForStart(30);
+
+    task_ComposterFromStart();
 
 }
