@@ -48,8 +48,9 @@ DigitalInputPin BRbumper(FEHIO::Pin4);
 
 FEHServo armServo(FEHServo::Servo0);
 #define BUCKET_PICK_UP_DEGREE 110
-#define BUCKET_CARRY_DEGREE 38
+#define BUCKET_CARRY_DEGREE 0
 #define TABLE_DROP_DEGREE 80
+#define BASKET_DROP_DEGREE 125
 #define LEVER_OVER_DEGREE 38
 #define LEVER_FLICK_DOWN_DEGREE 95
 #define LEVER_UNDER_DEGREE 105
@@ -149,7 +150,7 @@ PIDController leftPIDController(left_encoder, left_motor);
 void drive(float expectedVelocity, float inches)
 {
 
-    float maxCounts = inches * COUNTS_PER_INCH;
+    float maxCounts = inches * COUNTS_PER_INCH * 1.07;
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
     rightPIDController.reset();
@@ -368,7 +369,7 @@ void centerAxisTurn(float expectedVelocity, float degrees){
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.07;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -407,7 +408,7 @@ void leftAxisTurn(float expectedVelocity, float degrees){
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio * 2;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.07;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -442,7 +443,7 @@ void rightAxisTurn(float expectedVelocity, float degrees){
     float turn_ratio = degrees / 360;
     float full_circumference = TRACK_WIDTH_INCHES * PI;
     float drive_inches = full_circumference * turn_ratio * 2;
-    float max_counts = drive_inches * COUNTS_PER_INCH * 1.05;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.07;
 
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -753,9 +754,6 @@ int waitForHumidifierLight(float timeout){
         Sleep(0.01);
     }
 
-    LCD.SetFontColor(BLUE);
-    LCD.FillRectangle(0,0,1000,1000);
-
     return -1;
 }
 
@@ -816,12 +814,18 @@ bool fixPosition(float expectedX, float expectedY, float expectedHeading){
     LCD.Write(" ");
     LCD.Write(heading);
     LCD.WriteLine(" ");
+    LCD.Write(expectedX);
+    LCD.Write(" ");
+    LCD.Write(expectedY);
+    LCD.Write(" ");
+    LCD.Write(expectedHeading);
+    LCD.WriteLine(" ");
 
     float dx = expectedX - x;
     float dy = expectedY - y;
     float dist = hypot(dx, dy);
     float mathAngle = atan2(dy, dx) * (180.0/PI);
-    float targetAngle = wrapAngle(mathAngle- 90);
+    float targetAngle = wrapAngle(mathAngle - 90);
 
     LCD.Write(dist);
     LCD.Write(" ");
@@ -854,11 +858,7 @@ bool fixPosition(float expectedX, float expectedY, float expectedHeading){
 }
 
 coordinate appleBucket(0,0,0);
-coordinate table(0,0,0);
-coordinate windowOpen(0,0,0);
-coordinate windowClosed(0,0,0);
-coordinate humidifier(0,0,0);
-void initRCSCoordinates(){
+void initAppleBucketCoordinate(){
     int touch_x,touch_y;
     float x,y,heading;
 
@@ -866,50 +866,101 @@ void initRCSCoordinates(){
     LCD.WriteLine("Apple bucket");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
+    while(x < 0){
+        getPosition(&x,&y,&heading,1);
+    }
     appleBucket.set(x, y, heading);
     Buzzer.Beep();
     LCD.Clear();
-    Sleep(1.0);
+}
+
+coordinate table(0,0,0);
+void initTableCoordinate(){
+    int touch_x,touch_y;
+    float x = -1,y = -1,heading = -1;
 
     armServo.SetDegree(TABLE_DROP_DEGREE);
     LCD.WriteLine("Table");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
+    while(x <= 0 && y <= 0 && (heading < 0 || heading > 360)){
+        getPosition(&x,&y,&heading,1);
+    }
     table.set(x, y, heading);
     Buzzer.Beep();
+    Sleep(1.5);
     armServo.SetDegree(0);
     LCD.Clear();
-    Sleep(1.0);
+}
 
-    windowServo.SetDegree(0);
-    LCD.WriteLine("Window Closed");
-    while (!LCD.Touch(&touch_x, &touch_y));
-    while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
-    windowClosed.set(x, y, heading);
-    Buzzer.Beep();
-    LCD.Clear();
-    Sleep(1.0);
+coordinate windowOpen(0,0,0);
+void initWindowOpenCoordinate(){
+    int touch_x,touch_y;
+    float x,y,heading;
 
     windowServo.SetDegree(90);
     LCD.WriteLine("Window Open");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
+    while(x < 0){
+        getPosition(&x,&y,&heading,1);
+    }
     windowOpen.set(x, y, heading);
-    Buzzer.Beep();
     windowServo.SetDegree(0);
+    Buzzer.Beep();
     LCD.Clear();
-    Sleep(1.0);
+}
+
+coordinate windowClosed(0,0,0);
+void initWindowClosedCoordinate(){
+    int touch_x,touch_y;
+    float x,y,heading;
+
+    windowServo.SetDegree(0);
+    LCD.WriteLine("Window Closed");
+    while (!LCD.Touch(&touch_x, &touch_y));
+    while (LCD.Touch(&touch_x, &touch_y));
+    while(x < 0){
+        getPosition(&x,&y,&heading,1);
+    }
+    windowClosed.set(x, y, heading);
+    Buzzer.Beep();
+    LCD.Clear();
+}
+
+coordinate humidifier(0,0,0);
+void initHumidifierCoordinate(){
+    int touch_x,touch_y;
+    float x,y,heading;
 
     LCD.WriteLine("Humidifier");
     while (!LCD.Touch(&touch_x, &touch_y));
     while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
+    while(x < 0){
+        getPosition(&x,&y,&heading,1);
+    }
     humidifier.set(x, y, heading);
     Buzzer.Beep();
+    LCD.Clear();
+}
+
+void initRCSCoordinates(){
+    int touch_x,touch_y;
+    float x,y,heading;
+
+    initAppleBucketCoordinate();
+    Sleep(1.0);
+
+    initTableCoordinate();
+    Sleep(1.0);
+
+    initWindowClosedCoordinate();
+    Sleep(1.0);
+
+    initWindowOpenCoordinate();
+    Sleep(1.0);
+
+    initHumidifierCoordinate();
     LCD.Clear();
 }
 
@@ -962,27 +1013,35 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     rightAxisTurn(turnSpeed, 90);
 
-    driveTilCollision(collisionDriveSpeed, 5, false);
+    drive(driveSpeed, 23);
 
-    drive(-driveSpeed, 3);
+    centerAxisTurn(turnSpeed, 90);
 
-    table.go();
+    driveTilCollision(-collisionDriveSpeed, 2, true);
 
-    armServo.SetDegree(TABLE_DROP_DEGREE);
+    drive(driveSpeed, 10);
 
-    Sleep(0.5);
+    centerAxisTurn(turnSpeed, -90);
 
-    armServo.SetDegree(TABLE_DROP_DEGREE + 15);
+    driveTilCollision(collisionDriveSpeed, 3, false);
 
-    Sleep(0.2);
+    drive(-driveSpeed, 3.5);
 
-    armServo.SetDegree(TABLE_DROP_DEGREE);
+    centerAxisTurn(turnSpeed, -10);
 
-    Sleep(0.2);
+    slowSetDegree(BASKET_DROP_DEGREE, BUCKET_CARRY_DEGREE, 0.05);
 
-    drive(-driveSpeed, 3);
+    centerAxisTurn(turnSpeed, 10);
+
+    drive(-driveSpeed, 6);
 
     armServo.SetDegree(0);
+
+    centerAxisTurn(turnSpeed, 90);
+
+    driveTilCollision(-collisionDriveSpeed, 3, true);
+
+    drive(driveSpeed, 17.5);
 }
 
 void task_humidifier(int driveSpeed, int turnSpeed){
@@ -999,10 +1058,10 @@ void task_humidifier(int driveSpeed, int turnSpeed){
     }while(false);
 
     if(light == 1){
-        centerAxisTurn(turnSpeed, -45);
+        centerAxisTurn(turnSpeed, -17);
         drive(driveSpeed, 6);
     }else{
-        centerAxisTurn(turnSpeed, 45);
+        centerAxisTurn(turnSpeed, 17);
         drive(driveSpeed, 6);
     }
 
@@ -1013,10 +1072,10 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
     int lever = RCS.GetLever();
 
     if(lever == 0){ //left
-        drive(-driveSpeed, nullptr); //MEASURE
+        drive(-driveSpeed, -1); //MEASURE
         centerAxisTurn(turnSpeed, 45);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, nullptr); //MEASURE
+        drive(driveSpeed, -1); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
@@ -1026,10 +1085,10 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         drive(driveSpeed, 4);
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
     }else if(lever == 1){ //middle
-        drive(-driveSpeed, nullptr); //MEASURE
+        drive(-driveSpeed, -1); //MEASURE
         centerAxisTurn(turnSpeed, 45);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, nullptr); //MEASURE
+        drive(driveSpeed, -1); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
@@ -1039,10 +1098,10 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         drive(driveSpeed, 4);
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
     }else{ //right
-        drive(-driveSpeed, nullptr); //MEASURE
+        drive(-driveSpeed, -1); //MEASURE
         centerAxisTurn(turnSpeed, 45);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, nullptr); //MEASURE
+        drive(driveSpeed, -1); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
@@ -1056,45 +1115,31 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
 void task_window(int driveSpeed){
     windowServo.SetDegree(0);
-    drive(driveSpeed, nullptr); //MEASURE
+    drive(driveSpeed, -1); //MEASURE
     windowServo.SetDegree(90);
     Sleep(0.2);
-    drive(-driveSpeed, nullptr); //MEASURE
+    drive(-driveSpeed, -1); //MEASURE
 }
 
 void ERCMain()
 {
+    //FEHFile *fptr = SD.FOpen("test.txt", "w");
     windowServo.SetMin(600);
     windowServo.SetMax(2150);
     windowServo.SetDegree(0);
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
-    // RCS.DisableRateLimit();
-    RCS.InitializeTouchMenu("0910B9LKI");
+    //RCS.InitializeTouchMenu("0910B9LKI");
 
-    int touch_x,touch_y;
-    float x,y,heading;
-    armServo.SetDegree(TABLE_DROP_DEGREE);
-    LCD.WriteLine("Table");
-    while (!LCD.Touch(&touch_x, &touch_y));
-    while (LCD.Touch(&touch_x, &touch_y));
-    getPosition(&x,&y,&heading,10);
-    table.set(x, y, heading);
-    Buzzer.Beep();
-    Sleep(1.5);
-    armServo.SetDegree(0);
-    LCD.Clear();
-    LCD.Write("X: "); LCD.WriteLine(x);
-    LCD.Write("Y: "); LCD.WriteLine(y);
-    LCD.Write("H: "); LCD.WriteLine(heading);
-    Sleep(60.0);
-    //FEHFile *fptr = SD.FOpen("test.txt", "w");
+    //initTableCoordinate();
 
     armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
 
     WaitForFinalAction();
 
     task_appleBucket(8, 12, 6);
+
+    task_humidifier(8, 6);
 
 }
