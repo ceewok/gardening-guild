@@ -112,7 +112,7 @@ struct PIDController{
 
         previousTime = TimeNow();
 
-        Sleep(0.03);
+        Sleep(0.01);
     }
 
     float PIDAdjustment(float expectedVelocity){
@@ -512,130 +512,6 @@ void getMaxVelocities(){
     left_motor.SetPercent(0);
 }
 
-void pulse_forward(int percent, float seconds) 
-{
-    // Set both motors to desired percent
-    right_motor.SetPercent(percent);
-    left_motor.SetPercent(percent);
-
-    // Wait for the correct number of seconds
-    Sleep(seconds);
-
-    // Turn off motors
-    right_motor.Stop();
-    left_motor.Stop();
-}
-
-void pulse_counterclockwise(int percent, float seconds) 
-{
-    // Set both motors to desired percent
-    right_motor.SetPercent(percent);
-    left_motor.SetPercent(-percent);
-
-    // Wait for the correct number of seconds
-    Sleep(seconds);
-
-    // Turn off motors
-    right_motor.Stop();
-    left_motor.Stop();
-}
-
-//Use RCS to move to the desired x_coordinate based on the orientation of the AruCo code
-void fix_x(float x_coordinate)
-{
-    RCSPose* pose = RCS.RequestPosition();
-
-    float error = abs(pose->x - x_coordinate);
-
-    int headingFix = 1;
-
-    if(pose->heading > 90 && pose->heading < 270){ //facing x = 0 direction (left)
-        headingFix = -1;
-    }
-
-    int fixCounts = 0;
-
-    while(error > 1 && fixCounts < 10)
-    {
-        if(pose->x > 0){
-            if(pose->x > x_coordinate)
-            {
-                pulse_forward(-PULSE_POWER * headingFix, PULSE_TIME);
-            }
-            else if(pose->x < x_coordinate)
-            {
-                pulse_forward(PULSE_POWER * headingFix, PULSE_TIME);
-            }
-            fixCounts++;
-        }
-        Sleep(RCS_WAIT_TIME_IN_SEC);
-        pose = RCS.RequestPosition();
-        error = abs(pose->x - x_coordinate);
-    }
-
-}
-
-//Use RCS to move to the desired y_coordinate based on the orientation of the QR code
-void fix_y(float y_coordinate)
-{
-
-    RCSPose* pose = RCS.RequestPosition();
-
-    float error = abs(pose->y - y_coordinate);
-
-    int headingFix = -1;
-
-    if(pose->heading < 180){ //facing up
-        headingFix = 1;
-    }
-
-    int fixCounts = 0;
-
-    while(error > 1 && fixCounts < 10)
-    {
-        if(pose->y > 0){
-            if(pose->y > y_coordinate)
-            {
-                pulse_forward(-PULSE_POWER * headingFix, PULSE_TIME);
-            }
-            else if(pose->y < y_coordinate)
-            {
-                pulse_forward(PULSE_POWER * headingFix, PULSE_TIME);
-            }
-            fixCounts++;
-        }
-        Sleep(RCS_WAIT_TIME_IN_SEC);
-        pose = RCS.RequestPosition();
-        error = abs(pose->y - y_coordinate);
-    }
-}
-
-//Use RCS to move to the desired heading
-void fix_heading(float heading)
-{
-
-    RCSPose* pose = RCS.RequestPosition();
-    float curHeading = pose->heading;
-    float error = curHeading - heading;
-
-    while(abs(curHeading - heading) > 5){
-        if(curHeading > 0){
-            if(error < 0){
-                pulse_counterclockwise(PULSE_POWER, PULSE_TIME);
-            }else{
-                pulse_counterclockwise(-PULSE_POWER, PULSE_TIME);
-            }
-            
-        }
-        Sleep(RCS_WAIT_TIME_IN_SEC);
-        pose = RCS.RequestPosition();
-        curHeading = pose->heading;
-        error = curHeading - heading;
-        
-    }
-
-}
-
 void waitForStart(float timeout){
     float startTime = TimeNow();
     while(abs(cds.Value() - CDS_RED_LIGHT) > CDS_ERROR && (TimeNow() - startTime) < timeout){
@@ -990,14 +866,32 @@ void task_ComposterFromStart(int driveSpeed, int collisionDriveSpeed, int turnSp
     compostMotor.SetPercent(-20);
     Sleep(0.5);
 
-    drive(driveSpeed, 6);
+    drive(driveSpeed, 4);
     compostMotor.Stop();
+
+    centerAxisTurn(turnSpeed, 90);
+
+    drive(driveSpeed, 16);
+
+    centerAxisTurn(turnSpeed, -90);
+
+    driveTilCollision(collisionDriveSpeed, 2, true);
+
+    drive(-driveSpeed, 12);
+
+    centerAxisTurn(turnSpeed, -90);
+
+    driveTilCollision(-collisionDriveSpeed, 2, true);
+
+    drive(driveSpeed, 11.25);
+
+    centerAxisTurn(turnSpeed, 90);
 }
 
 void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
     armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
 
-    drive(driveSpeed, 3);
+    drive(driveSpeed, 2.5);
 
     slowSetDegree(BUCKET_CARRY_DEGREE, BUCKET_PICK_UP_DEGREE, 0.05);
 
@@ -1027,11 +921,7 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     drive(-driveSpeed, 3.5);
 
-    centerAxisTurn(turnSpeed, -10);
-
     slowSetDegree(BASKET_DROP_DEGREE, BUCKET_CARRY_DEGREE, 0.05);
-
-    centerAxisTurn(turnSpeed, 10);
 
     drive(-driveSpeed, 6);
 
@@ -1045,72 +935,76 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 }
 
 void task_humidifier(int driveSpeed, int turnSpeed){
-    int light = waitForHumidifierLight(1);
+    int light = waitForHumidifierLight(0.5);
     do{
         if(light == -1){
             drive(driveSpeed, 0.5);
-            light = waitForHumidifierLight(0.5);
+            light = waitForHumidifierLight(0.25);
             if(light > 0) break;
             drive(-driveSpeed, 1);
-            light = waitForHumidifierLight(0.5);
+            light = waitForHumidifierLight(0.25);
+            if(light > 0) break;
+            drive(-driveSpeed, 0.5);
+            light = waitForHumidifierLight(0.25);
             if(light > 0) break;
         }
     }while(false);
 
     if(light == 1){
         centerAxisTurn(turnSpeed, -17);
-        drive(driveSpeed, 6);
+        drive(driveSpeed, 8);
     }else{
         centerAxisTurn(turnSpeed, 17);
-        drive(driveSpeed, 6);
+        drive(driveSpeed, 8);
     }
 
 }
 
 void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
     driveTilCollision(collisionDriveSpeed, 2, false);
+    drive(driveSpeed, 2);
     int lever = RCS.GetLever();
 
     if(lever == 0){ //left
-        drive(-driveSpeed, -1); //MEASURE
-        centerAxisTurn(turnSpeed, 45);
+        drive(-driveSpeed, 6); //MEASURE
+        centerAxisTurn(turnSpeed, -45);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, -1); //MEASURE
+        drive(driveSpeed, 8); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
         drive(-driveSpeed, 4);
         armServo.SetDegree(LEVER_UNDER_DEGREE);
-        while(TimeNow() - timeFlickedDown > 5) Sleep(0.1);
+        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
         drive(driveSpeed, 4);
-        armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
     }else if(lever == 1){ //middle
-        drive(-driveSpeed, -1); //MEASURE
-        centerAxisTurn(turnSpeed, 45);
+        drive(-driveSpeed, 12); //MEASURE
+        centerAxisTurn(turnSpeed, -45);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, -1); //MEASURE
+        drive(driveSpeed, 11.5); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
         drive(-driveSpeed, 4);
         armServo.SetDegree(LEVER_UNDER_DEGREE);
-        while(TimeNow() - timeFlickedDown > 5) Sleep(0.1);
+        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
         drive(driveSpeed, 4);
-        armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
     }else{ //right
-        drive(-driveSpeed, -1); //MEASURE
-        centerAxisTurn(turnSpeed, 45);
+        drive(-driveSpeed, 12); //MEASURE
+        centerAxisTurn(turnSpeed, -57);
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, -1); //MEASURE
+        drive(driveSpeed, 11.5); //MEASURE
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         Sleep(0.1);
         float timeFlickedDown = TimeNow();
         drive(-driveSpeed, 4);
         armServo.SetDegree(LEVER_UNDER_DEGREE);
-        while(TimeNow() - timeFlickedDown > 5) Sleep(0.1);
+        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
         drive(driveSpeed, 4);
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
     }
+    drive(driveSpeed, -4);
+    armServo.SetDegree(0);
 }
 
 void task_window(int driveSpeed){
@@ -1132,11 +1026,9 @@ void ERCMain()
     armServo.SetDegree(0);
     //RCS.InitializeTouchMenu("0910B9LKI");
 
-    //initTableCoordinate();
-
-    armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
-
     WaitForFinalAction();
+
+    task_ComposterFromStart(8, 12, 6);
 
     task_appleBucket(8, 12, 6);
 
