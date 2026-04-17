@@ -23,7 +23,7 @@ FEHMotor left_motor(FEHMotor::Motor3,9.0);
 AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
 #define CDS_RED_LIGHT 0.22 //these values are good for red filter
 #define CDS_BLUE_LIGHT 0.8
-#define CDS_ERROR 0.15
+#define CDS_ERROR 0.17
 
 AnalogInputPin leftOpto(FEHIO::Pin7); //more light = lower voltage
 AnalogInputPin midOpto(FEHIO::Pin6);
@@ -51,9 +51,9 @@ FEHServo armServo(FEHServo::Servo0);
 #define BUCKET_CARRY_DEGREE 0
 #define TABLE_DROP_DEGREE 80
 #define BASKET_DROP_DEGREE 125
-#define LEVER_OVER_DEGREE 38
-#define LEVER_FLICK_DOWN_DEGREE 95
-#define LEVER_UNDER_DEGREE 105
+#define LEVER_OVER_DEGREE 72
+#define LEVER_FLICK_DOWN_DEGREE 125
+#define LEVER_UNDER_DEGREE 140
 #define LEVER_FLICK_UP_DEGREE 72
 
 FEHMotor compostMotor(FEHMotor::Motor2, 5.0);
@@ -851,11 +851,13 @@ void task_ComposterFromStart(int driveSpeed, int collisionDriveSpeed, int turnSp
 
     rightAxisTurn(turnSpeed, 90);
 
-    leftAxisTurn(turnSpeed, 3);
+    leftAxisTurn(turnSpeed, 4.5);
 
-    drive(-6, 15);
+    drive(-6, 13);
 
     compostMotor.SetPercent(-80);
+    left_motor.SetPercent(-15);
+    right_motor.SetPercent(-15);
 
     Sleep(1.5);
 
@@ -863,6 +865,8 @@ void task_ComposterFromStart(int driveSpeed, int collisionDriveSpeed, int turnSp
 
     Sleep(1.5);
 
+    left_motor.Stop();
+    right_motor.Stop();
     compostMotor.SetPercent(-20);
     Sleep(0.5);
 
@@ -871,7 +875,7 @@ void task_ComposterFromStart(int driveSpeed, int collisionDriveSpeed, int turnSp
 
     centerAxisTurn(turnSpeed, 90);
 
-    drive(driveSpeed, 16);
+    drive(driveSpeed, 14);
 
     centerAxisTurn(turnSpeed, -90);
 
@@ -883,15 +887,17 @@ void task_ComposterFromStart(int driveSpeed, int collisionDriveSpeed, int turnSp
 
     driveTilCollision(-collisionDriveSpeed, 2, true);
 
-    drive(driveSpeed, 11.25);
+    drive(driveSpeed, 9.75);
 
-    centerAxisTurn(turnSpeed, 90);
+    centerAxisTurn(turnSpeed, -90);
 }
 
 void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
     armServo.SetDegree(BUCKET_PICK_UP_DEGREE);
 
-    drive(driveSpeed, 2.5);
+    Sleep(0.5);
+
+    drive(driveSpeed, 1.5);
 
     slowSetDegree(BUCKET_CARRY_DEGREE, BUCKET_PICK_UP_DEGREE, 0.05);
 
@@ -921,9 +927,15 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     drive(-driveSpeed, 3.5);
 
+    centerAxisTurn(turnSpeed, -6);
+
     slowSetDegree(BASKET_DROP_DEGREE, BUCKET_CARRY_DEGREE, 0.05);
 
-    drive(-driveSpeed, 6);
+    Sleep(0.1);
+
+    centerAxisTurn(turnSpeed, 6);
+
+    drive(-driveSpeed, 7.5);
 
     armServo.SetDegree(0);
 
@@ -952,58 +964,106 @@ void task_humidifier(int driveSpeed, int turnSpeed){
 
     if(light == 1){
         centerAxisTurn(turnSpeed, -17);
-        drive(driveSpeed, 8);
+        drive(driveSpeed, 6);
+        drive(-driveSpeed, 5);
+        centerAxisTurn(turnSpeed, 17);
     }else{
         centerAxisTurn(turnSpeed, 17);
-        drive(driveSpeed, 8);
+        drive(driveSpeed, 6);
+        drive(-driveSpeed, 5);
+        centerAxisTurn(turnSpeed, -17);
     }
 
 }
 
 void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
     driveTilCollision(collisionDriveSpeed, 2, false);
-    drive(driveSpeed, 2);
+    drive(driveSpeed, 1);
+
     int lever = RCS.GetLever();
 
     if(lever == 0){ //left
-        drive(-driveSpeed, 6); //MEASURE
+
+        drive(-driveSpeed, 6);
+
         centerAxisTurn(turnSpeed, -45);
+
         armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, 8); //MEASURE
+
+        drive(driveSpeed, 5);
+
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+
         Sleep(0.1);
+
         float timeFlickedDown = TimeNow();
+
         drive(-driveSpeed, 4);
+
         armServo.SetDegree(LEVER_UNDER_DEGREE);
-        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
+
         drive(driveSpeed, 4);
-    }else if(lever == 1){ //middle
-        drive(-driveSpeed, 12); //MEASURE
-        centerAxisTurn(turnSpeed, -45);
-        armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, 11.5); //MEASURE
-        armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
-        Sleep(0.1);
-        float timeFlickedDown = TimeNow();
-        drive(-driveSpeed, 4);
-        armServo.SetDegree(LEVER_UNDER_DEGREE);
+
         while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
-        drive(driveSpeed, 4);
-    }else{ //right
-        drive(-driveSpeed, 12); //MEASURE
-        centerAxisTurn(turnSpeed, -57);
-        armServo.SetDegree(LEVER_OVER_DEGREE);
-        drive(driveSpeed, 11.5); //MEASURE
-        armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
-        Sleep(0.1);
-        float timeFlickedDown = TimeNow();
-        drive(-driveSpeed, 4);
-        armServo.SetDegree(LEVER_UNDER_DEGREE);
-        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
-        drive(driveSpeed, 4);
+
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+
+    }else if(lever == 1){ //middle
+
+        drive(-driveSpeed, 12);
+        
+        centerAxisTurn(turnSpeed, -45);
+        
+        armServo.SetDegree(LEVER_OVER_DEGREE);
+        
+        drive(driveSpeed, 8.5);
+        
+        armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+        
+        Sleep(0.1);
+        
+        float timeFlickedDown = TimeNow();
+        
+        drive(-driveSpeed, 4);
+        
+        armServo.SetDegree(LEVER_UNDER_DEGREE);
+        
+        drive(driveSpeed, 4);
+        
+        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
+        
+        armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+
+    }else{ //right
+        
+        drive(-driveSpeed, 12);
+        
+        centerAxisTurn(turnSpeed, -55);
+        
+        armServo.SetDegree(LEVER_OVER_DEGREE);
+        
+        drive(driveSpeed, 8.5);
+        
+        armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+        
+        Sleep(0.1);
+        
+        float timeFlickedDown = TimeNow();
+        
+        drive(-driveSpeed, 4);
+        
+        armServo.SetDegree(LEVER_UNDER_DEGREE);
+        
+        drive(driveSpeed, 4);
+        
+        while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
+        
+        armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+
     }
+    
     drive(driveSpeed, -4);
+    
     armServo.SetDegree(0);
 }
 
@@ -1015,6 +1075,20 @@ void task_window(int driveSpeed){
     drive(-driveSpeed, -1); //MEASURE
 }
 
+void task_endButtonFromLevers(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
+    drive(-driveSpeed, 15);
+
+    centerAxisTurn(turnSpeed, 45);
+
+    driveTilCollision(-collisionDriveSpeed, 3, true);
+
+    drive(driveSpeed, 1);
+
+    leftAxisTurn(turnSpeed, 90);
+
+    drive(driveSpeed, 600);
+}
+
 void ERCMain()
 {
     //FEHFile *fptr = SD.FOpen("test.txt", "w");
@@ -1024,9 +1098,12 @@ void ERCMain()
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
-    //RCS.InitializeTouchMenu("0910B9LKI");
+
+    RCS.InitializeTouchMenu("0910B9LKI");
 
     WaitForFinalAction();
+
+    waitForStart(10);
 
     task_ComposterFromStart(8, 12, 6);
 
@@ -1034,4 +1111,7 @@ void ERCMain()
 
     task_humidifier(8, 6);
 
+    task_leversFromHumidifier(8, 12, 6);
+
+    task_endButtonFromLevers(8, 12, 6);
 }
