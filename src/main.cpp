@@ -54,7 +54,7 @@ FEHServo armServo(FEHServo::Servo0);
 #define LEVER_OVER_DEGREE 72
 #define LEVER_FLICK_DOWN_DEGREE 125
 #define LEVER_UNDER_DEGREE 140
-#define LEVER_FLICK_UP_DEGREE 72
+#define LEVER_FLICK_UP_DEGREE 90
 
 FEHMotor compostMotor(FEHMotor::Motor2, 5.0);
 
@@ -731,14 +731,12 @@ int waitForHumidifierLight(float timeout){
     while((TimeNow() - startTime) < timeout){
 
         if(abs(cds.Value() - CDS_RED_LIGHT) < CDS_ERROR){
-            LCD.SetFontColor(RED);
-            LCD.FillRectangle(0,0,1000,1000);
+            Sleep(10);
             return 1;
         }
 
         if(abs(cds.Value() - CDS_BLUE_LIGHT) < CDS_ERROR){
-            LCD.SetFontColor(BLUE);
-            LCD.FillRectangle(0,0,1000,1000);
+            Sleep(10);
             return 2;
         }
 
@@ -1044,11 +1042,19 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     drive(-driveSpeed, 2);
 
+    armServo.SetDegree(0);
+
+    drive(driveSpeed, 4.5);
+
     Sleep(0.1);
 
     centerAxisTurn(turnSpeed, 90);
 
     driveTilCollision(-collisionDriveSpeed, 2, true);
+
+    Sleep(0.1);
+    
+    drive(-driveSpeed, 1);
 
     drive(driveSpeed, 17.5);
 
@@ -1090,28 +1096,33 @@ void task_humidifier(int driveSpeed, int turnSpeed){
     do{
         if(light == -1){
             drive(driveSpeed, 0.5);
-            light = waitForHumidifierLight(0.25);
+            light = waitForHumidifierLight(0.5);
             if(light > 0) break;
-            drive(-driveSpeed, 1);
-            light = waitForHumidifierLight(0.25);
+            centerAxisTurn(turnSpeed, 20);
+            drive(-driveSpeed, 3);
+            light = waitForHumidifierLight(0.5);
             if(light > 0) break;
-            drive(-driveSpeed, 0.5);
-            light = waitForHumidifierLight(0.25);
+            centerAxisTurn(turnSpeed, -20);
+            Sleep(0.1);
+            light = waitForHumidifierLight(0.5);
             if(light > 0) break;
             drive(driveSpeed, 1);
+            Sleep(0.1);
+            light = waitForHumidifierLight(2);
+            if(light > 0) break;
         }
     }while(false);
 
     if(light == 1){
-        centerAxisTurn(turnSpeed, -17);
+        centerAxisTurn(turnSpeed, -10);
         drive(driveSpeed, 5);
         drive(-driveSpeed, 5);
-        centerAxisTurn(turnSpeed, 17);
+        centerAxisTurn(turnSpeed, 10);
     }else{
-        centerAxisTurn(turnSpeed, 17);
+        centerAxisTurn(turnSpeed, 10);
         drive(driveSpeed, 5);
         drive(-driveSpeed, 5);
-        centerAxisTurn(turnSpeed, -17);
+        centerAxisTurn(turnSpeed, -10);
     }
 
 }
@@ -1130,11 +1141,11 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         armServo.SetDegree(LEVER_OVER_DEGREE);
 
-        drive(driveSpeed, 6);
+        drive(driveSpeed,5);
 
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
 
-        Sleep(0.1);
+        Sleep(1);
 
         float timeFlickedDown = TimeNow();
 
@@ -1142,11 +1153,15 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         armServo.SetDegree(LEVER_UNDER_DEGREE);
 
-        drive(driveSpeed, 4);
+        drive(driveSpeed, 3);
 
         while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
 
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+        
+        Sleep(0.1);
+
+        armServo.SetDegree(LEVER_UNDER_DEGREE);
 
     }else if(lever == 1){ //middle
 
@@ -1156,7 +1171,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_OVER_DEGREE);
         
-        drive(driveSpeed, 9);
+        drive(driveSpeed, 9.5);
         
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
@@ -1168,11 +1183,15 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_UNDER_DEGREE);
         
-        drive(driveSpeed, 4);
+        drive(driveSpeed, 3.5);
         
         while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
         
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+        
+        Sleep(0.1);
+
+        armServo.SetDegree(LEVER_UNDER_DEGREE);
 
     }else{ //right
         
@@ -1199,11 +1218,18 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         while(TimeNow() - timeFlickedDown < 5) Sleep(0.1);
         
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
+        
+        Sleep(0.1);
 
+        armServo.SetDegree(LEVER_UNDER_DEGREE);
     }
-    
+
+    Sleep(0.1);
+
     drive(driveSpeed, -4);
     
+    Sleep(1);
+
     armServo.SetDegree(0);
 }
 
