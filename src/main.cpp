@@ -21,9 +21,9 @@ FEHMotor right_motor(FEHMotor::Motor1,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
 AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
-#define CDS_RED_LIGHT 0.22 //these values are good for red filter
-#define CDS_BLUE_LIGHT 0.8
-#define CDS_ERROR 0.17
+#define CDS_RED_LIGHT 0.2 //these values are good for red filter
+#define CDS_BLUE_LIGHT 0.7
+#define CDS_ERROR 0.2
 
 AnalogInputPin leftOpto(FEHIO::Pin7); //more light = lower voltage
 AnalogInputPin midOpto(FEHIO::Pin6);
@@ -897,7 +897,7 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     Sleep(0.5);
 
-    drive(driveSpeed, 1.5);
+    drive(driveSpeed, 1.75);
 
     slowSetDegree(BUCKET_CARRY_DEGREE, BUCKET_PICK_UP_DEGREE, 0.05);
 
@@ -959,17 +959,18 @@ void task_humidifier(int driveSpeed, int turnSpeed){
             drive(-driveSpeed, 0.5);
             light = waitForHumidifierLight(0.25);
             if(light > 0) break;
+            drive(driveSpeed, 1);
         }
     }while(false);
 
     if(light == 1){
         centerAxisTurn(turnSpeed, -17);
-        drive(driveSpeed, 6);
+        drive(driveSpeed, 5);
         drive(-driveSpeed, 5);
         centerAxisTurn(turnSpeed, 17);
     }else{
         centerAxisTurn(turnSpeed, 17);
-        drive(driveSpeed, 6);
+        drive(driveSpeed, 5);
         drive(-driveSpeed, 5);
         centerAxisTurn(turnSpeed, -17);
     }
@@ -990,7 +991,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         armServo.SetDegree(LEVER_OVER_DEGREE);
 
-        drive(driveSpeed, 5);
+        drive(driveSpeed, 6);
 
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
 
@@ -1016,7 +1017,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_OVER_DEGREE);
         
-        drive(driveSpeed, 8.5);
+        drive(driveSpeed, 9);
         
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
@@ -1086,7 +1087,17 @@ void task_endButtonFromLevers(int driveSpeed, int collisionDriveSpeed, int turnS
 
     leftAxisTurn(turnSpeed, 90);
 
-    drive(driveSpeed, 600);
+    driveTilCollision(collisionDriveSpeed, 10, false);
+
+    drive(-driveSpeed, 2);
+
+    centerAxisTurn(turnSpeed, -15);
+
+    drive(driveSpeed, 12);
+
+    leftAxisTurn(turnSpeed, 45);
+
+    drive(driveSpeed, 24);
 }
 
 void ERCMain()
@@ -1099,11 +1110,13 @@ void ERCMain()
     armServo.SetMax(2500);
     armServo.SetDegree(0);
 
+    task_ComposterFromStart(8, 12, 6);
+
     RCS.InitializeTouchMenu("0910B9LKI");
 
     WaitForFinalAction();
 
-    waitForStart(10);
+    waitForStart(30);
 
     task_ComposterFromStart(8, 12, 6);
 
