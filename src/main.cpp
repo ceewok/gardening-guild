@@ -49,7 +49,7 @@ DigitalInputPin BRbumper(FEHIO::Pin4);
 FEHServo armServo(FEHServo::Servo0);
 #define BUCKET_PICK_UP_DEGREE 110
 #define BUCKET_CARRY_DEGREE 0
-#define TABLE_DROP_DEGREE 80
+#define TABLE_DROP_DEGREE 83
 #define BASKET_DROP_DEGREE 125
 #define LEVER_OVER_DEGREE 72
 #define LEVER_FLICK_DOWN_DEGREE 125
@@ -897,7 +897,7 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     Sleep(0.5);
 
-    drive(driveSpeed, 1.9);
+    drive(driveSpeed, 2.25);
 
     slowSetDegree(BUCKET_CARRY_DEGREE, BUCKET_PICK_UP_DEGREE, 0.05);
 
@@ -911,19 +911,31 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     driveTilCollision(-collisionDriveSpeed, 3, true);
 
-    rightAxisTurn(turnSpeed, 90);
+    rightAxisTurn(turnSpeed, 93);
 
     driveTilCollision(collisionDriveSpeed, 3, false);
 
     drive(-driveSpeed, 2);
 
-    rightAxisTurn(-turnSpeed, 90);
+    rightAxisTurn(turnSpeed, -90);
 
     driveTilCollision(-collisionDriveSpeed, 3, true);
 
-    rightAxisTurn(turnSpeed, 90);
+    rightAxisTurn(turnSpeed, 94);
     
+    drive(-driveSpeed, 1);
+
     slowSetDegree(TABLE_DROP_DEGREE, BUCKET_CARRY_DEGREE, 0.05);
+
+    drive(-driveSpeed, 2);
+
+    Sleep(0.1);
+
+    centerAxisTurn(turnSpeed, 90);
+
+    driveTilCollision(-collisionDriveSpeed, 2, true);
+
+    drive(driveSpeed, 17.5);
 
    /*drive(driveSpeed, 23);
 
