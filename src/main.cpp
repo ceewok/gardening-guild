@@ -21,8 +21,8 @@ FEHMotor right_motor(FEHMotor::Motor1,9.0);
 FEHMotor left_motor(FEHMotor::Motor3,9.0);
 
 AnalogInputPin cds(FEHIO::Pin0); //orange ground, blue 3.3, yellow signal
-#define CDS_RED_LIGHT 0.2 //these values are good for red filter
-#define CDS_BLUE_LIGHT 0.7
+#define CDS_RED_LIGHT 0.3 //these values are good for red filter
+#define CDS_BLUE_LIGHT 0.8
 #define CDS_ERROR 0.2
 
 AnalogInputPin leftOpto(FEHIO::Pin7); //more light = lower voltage
@@ -897,7 +897,7 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     Sleep(0.5);
 
-    drive(driveSpeed, 1.75);
+    drive(driveSpeed, 1.9);
 
     slowSetDegree(BUCKET_CARRY_DEGREE, BUCKET_PICK_UP_DEGREE, 0.05);
 
@@ -913,7 +913,19 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     rightAxisTurn(turnSpeed, 90);
 
-    drive(driveSpeed, 23);
+    driveTilCollision(collisionDriveSpeed, 3, false);
+
+    drive(-driveSpeed, 2);
+
+    rightAxisTurn(-turnSpeed, 90);
+
+    driveTilCollision(-collisionDriveSpeed, 3, true);
+
+    rightAxisTurn(turnSpeed, 90);
+    
+    slowSetDegree(TABLE_DROP_DEGREE, BUCKET_CARRY_DEGREE, 0.05);
+
+   /*drive(driveSpeed, 23);
 
     centerAxisTurn(turnSpeed, 90);
 
@@ -943,7 +955,7 @@ void task_appleBucket(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
 
     driveTilCollision(-collisionDriveSpeed, 3, true);
 
-    drive(driveSpeed, 17.5);
+    drive(driveSpeed, 17.5); */
 }
 
 void task_humidifier(int driveSpeed, int turnSpeed){
@@ -1109,8 +1121,6 @@ void ERCMain()
     armServo.SetMin(500);
     armServo.SetMax(2500);
     armServo.SetDegree(0);
-
-    task_ComposterFromStart(8, 12, 6);
 
     RCS.InitializeTouchMenu("0910B9LKI");
 
