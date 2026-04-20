@@ -149,7 +149,6 @@ PIDController leftPIDController(left_encoder, left_motor);
 //negative velocity is backwards
 void drive(float expectedVelocity, float inches)
 {
-
     float maxCounts = inches * COUNTS_PER_INCH * 1.07;
     float expectedPower = (expectedVelocity / MAX_VEL) * 100;
 
@@ -179,6 +178,62 @@ void drive(float expectedVelocity, float inches)
     //Turn off motors
     right_motor.Stop();
     left_motor.Stop();
+}
+
+//Returns -1 if nothing read, 1 for blue and 2 for red
+int drive_WhileCDS(float expectedVelocity, float inches)
+{
+    int cds_value = -1;
+    float maxCounts = inches * COUNTS_PER_INCH * 1.07;
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+
+    rightPIDController.reset();
+    leftPIDController.reset();
+
+    if(expectedVelocity > 0){
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            if(cds_value < 1){
+                if(abs(cds.Value() - CDS_RED_LIGHT) < CDS_ERROR){
+                    cds_value = 1;
+                }
+
+                if(abs(cds.Value() - CDS_BLUE_LIGHT) < CDS_ERROR){
+                    cds_value = 2;
+                }
+            }
+
+            Sleep(0.01);
+        }
+    }else{
+        expectedPower *= -1;
+        expectedVelocity *= -1;
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < maxCounts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
+
+            if(cds_value < 1){
+                if(abs(cds.Value() - CDS_RED_LIGHT) < CDS_ERROR){
+                    cds_value = 1;
+                }
+
+                if(abs(cds.Value() - CDS_BLUE_LIGHT) < CDS_ERROR){
+                    cds_value = 2;
+                }
+            }
+
+            Sleep(0.01);
+        }
+    }
+
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+    return cds_value;
 }
 
 //drives forward INCHES until it finds a line, if a line is found will drive on that line for INCHES inches
@@ -392,6 +447,66 @@ void centerAxisTurn(float expectedVelocity, float degrees){
 
             rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
             leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            Sleep(0.01);
+        }
+    }
+
+    left_motor.Stop();
+    right_motor.Stop();
+
+}
+
+//Returns -1 if nothing read, 1 for blue and 2 for red
+int centerAxisTurn_WhileCDS(float expectedVelocity, float degrees){
+
+    int cds_value = -1;
+    float turn_ratio = degrees / 360;
+    float full_circumference = TRACK_WIDTH_INCHES * PI;
+    float drive_inches = full_circumference * turn_ratio;
+    float max_counts = drive_inches * COUNTS_PER_INCH * 1.07;
+
+    float expectedPower = (expectedVelocity / MAX_VEL) * 100;
+
+    rightPIDController.reset();
+    leftPIDController.reset();
+
+    if(degrees > 0){ //Turn counterclockwise (left)
+
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, 1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, -1);
+
+            if(cds_value < 1){
+                if(abs(cds.Value() - CDS_RED_LIGHT) < CDS_ERROR){
+                    cds_value = 1;
+                }
+
+                if(abs(cds.Value() - CDS_BLUE_LIGHT) < CDS_ERROR){
+                    cds_value = 2;
+                }
+            }
+
+            Sleep(0.01);
+        }
+    }else{ //Turn clockwise (right)
+        max_counts = max_counts * -1;
+
+        while((left_encoder.Counts() + right_encoder.Counts()) / 2 < max_counts){
+
+            rightPIDController.setMotor(expectedVelocity, expectedPower, -1);
+            leftPIDController.setMotor(expectedVelocity, expectedPower, 1);
+
+            if(cds_value < 1){
+                if(abs(cds.Value() - CDS_RED_LIGHT) < CDS_ERROR){
+                    cds_value = 1;
+                }
+
+                if(abs(cds.Value() - CDS_BLUE_LIGHT) < CDS_ERROR){
+                    cds_value = 2;
+                }
+            }
 
             Sleep(0.01);
         }
