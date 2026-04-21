@@ -52,9 +52,9 @@ FEHServo armServo(FEHServo::Servo0);
 #define TABLE_DROP_DEGREE 83
 #define BASKET_DROP_DEGREE 125
 #define LEVER_OVER_DEGREE 72
-#define LEVER_FLICK_DOWN_DEGREE 125
+#define LEVER_FLICK_DOWN_DEGREE 140
 #define LEVER_UNDER_DEGREE 140
-#define LEVER_FLICK_UP_DEGREE 90
+#define LEVER_FLICK_UP_DEGREE 80
 
 FEHMotor compostMotor(FEHMotor::Motor2, 5.0);
 
@@ -1119,17 +1119,15 @@ void task_humidifier(int driveSpeed, int turnSpeed){
         drive(-driveSpeed, 5);
         centerAxisTurn(turnSpeed, 10);
     }else{
-        centerAxisTurn(turnSpeed, 10);
+        centerAxisTurn(turnSpeed, 13);
         drive(driveSpeed, 5);
         drive(-driveSpeed, 5);
-        centerAxisTurn(turnSpeed, -10);
+        centerAxisTurn(turnSpeed, -13);
     }
 
 }
 
 void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
-    driveTilCollision(collisionDriveSpeed, 2, false);
-    drive(driveSpeed, 1);
 
     int lever = RCS.GetLever();
 
@@ -1145,7 +1143,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
 
-        Sleep(1);
+        Sleep(1.0);
 
         float timeFlickedDown = TimeNow();
 
@@ -1159,7 +1157,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
         
-        Sleep(0.1);
+        Sleep(0.5);
 
         armServo.SetDegree(LEVER_UNDER_DEGREE);
 
@@ -1171,11 +1169,11 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_OVER_DEGREE);
         
-        drive(driveSpeed, 9.5);
+        drive(driveSpeed, 10.5);
         
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
-        Sleep(0.1);
+        Sleep(1.0);
         
         float timeFlickedDown = TimeNow();
         
@@ -1189,13 +1187,13 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
         
-        Sleep(0.1);
+        Sleep(0.5);
 
         armServo.SetDegree(LEVER_UNDER_DEGREE);
 
     }else{ //right
         
-        drive(-driveSpeed, 12);
+        drive(-driveSpeed, 11);
         
         centerAxisTurn(turnSpeed, -55);
         
@@ -1205,7 +1203,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
-        Sleep(0.1);
+        Sleep(1.0);
         
         float timeFlickedDown = TimeNow();
         
@@ -1219,7 +1217,7 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         
         armServo.SetDegree(LEVER_FLICK_UP_DEGREE);
         
-        Sleep(0.1);
+        Sleep(0.5);
 
         armServo.SetDegree(LEVER_UNDER_DEGREE);
     }
@@ -1228,21 +1226,43 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
     drive(driveSpeed, -4);
     
-    Sleep(1);
+    Sleep(1.0);
 
-    armServo.SetDegree(0);
+   // armServo.SetDegree(0);
 }
 
-void task_window(int driveSpeed){
+void task_window(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
+    
+    drive(-driveSpeed, 13);
+
+    armServo.SetDegree(0);
+
+    centerAxisTurn(turnSpeed, 45);
+
+    driveTilCollision(-collisionDriveSpeed, 3, true);
+
+    drive(driveSpeed, 1);
+
+    leftAxisTurn(turnSpeed, -90);
+
+    driveTilCollision(-collisionDriveSpeed, 3, false);
+
+    drive(driveSpeed, 3);
+
+    centerAxisTurn(turnSpeed, -90);
+
+    
     windowServo.SetDegree(0);
-    drive(driveSpeed, -1); //MEASURE
+    driveTilCollision(collisionDriveSpeed, 3, false);; //MEASURE
     windowServo.SetDegree(90);
     Sleep(0.2);
-    drive(-driveSpeed, -1); //MEASURE
+    drive(-driveSpeed, 3); //MEASURE
 }
 
 void task_endButtonFromLevers(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
-    drive(-driveSpeed, 15);
+    drive(-driveSpeed, 13);
+
+    armServo.SetDegree(0);
 
     centerAxisTurn(turnSpeed, 45);
 
@@ -1252,17 +1272,23 @@ void task_endButtonFromLevers(int driveSpeed, int collisionDriveSpeed, int turnS
 
     leftAxisTurn(turnSpeed, 90);
 
-    driveTilCollision(collisionDriveSpeed, 10, false);
+    driveTilCollision(collisionDriveSpeed, 3, false);
 
-    drive(-driveSpeed, 2);
+    drive(-driveSpeed, 4);
 
     centerAxisTurn(turnSpeed, -15);
 
-    drive(driveSpeed, 12);
+    drive(driveSpeed, 2);
 
     leftAxisTurn(turnSpeed, 45);
 
-    drive(driveSpeed, 24);
+    drive(driveSpeed, 4);
+
+    drive(-driveSpeed, 2);
+
+    leftAxisTurn(turnSpeed, 45);
+
+    drive(driveSpeed, 4);
 }
 
 void ERCMain()
@@ -1273,7 +1299,7 @@ void ERCMain()
     windowServo.SetDegree(0);
     armServo.SetMin(500);
     armServo.SetMax(2500);
-    armServo.SetDegree(0);
+    armServo.SetDegree(190);
 
     RCS.InitializeTouchMenu("0910B9LKI");
 
@@ -1289,5 +1315,6 @@ void ERCMain()
 
     task_leversFromHumidifier(8, 12, 6);
 
-    task_endButtonFromLevers(8, 12, 6);
+    task_window(8, 12, 6);
+    //task_endButtonFromLevers(8, 12, 6);
 }
