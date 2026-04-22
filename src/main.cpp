@@ -1145,6 +1145,15 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
 
         Sleep(1.0);
 
+        if(!RCS.isLeverFlipped()){
+            armServo.SetDegree(LEVER_OVER_DEGREE);
+            Sleep(0.15);
+            drive(driveSpeed, 1.5);
+            armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+            Sleep(0.15);
+            drive(-driveSpeed, 1.5);
+        }
+
         float timeFlickedDown = TimeNow();
 
         drive(-driveSpeed, 4);
@@ -1174,6 +1183,15 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
         Sleep(1.0);
+
+        if(!RCS.isLeverFlipped()){
+            armServo.SetDegree(LEVER_OVER_DEGREE);
+            Sleep(0.15);
+            drive(driveSpeed, 1.5);
+            armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+            Sleep(0.15);
+            drive(-driveSpeed, 1.5);
+        }
         
         float timeFlickedDown = TimeNow();
         
@@ -1204,6 +1222,15 @@ void task_leversFromHumidifier(int driveSpeed, int collisionDriveSpeed, int turn
         armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
         
         Sleep(1.0);
+
+        if(!RCS.isLeverFlipped()){
+            armServo.SetDegree(LEVER_OVER_DEGREE);
+            Sleep(0.15);
+            drive(driveSpeed, 1.5);
+            armServo.SetDegree(LEVER_FLICK_DOWN_DEGREE);
+            Sleep(0.15);
+            drive(-driveSpeed, 1.5);
+        }
         
         float timeFlickedDown = TimeNow();
         

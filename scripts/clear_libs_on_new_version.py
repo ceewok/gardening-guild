@@ -3,11 +3,13 @@ import json
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 Import("env")  # PlatformIO injects this in extra_scripts
 
@@ -31,7 +33,7 @@ def run_pio(args, check=True):
     return subprocess.run(cmd, check=check).returncode
 
 
-def fetch_latest_version_from_registry(pkg: str) -> str | None:
+def fetch_latest_version_from_registry(pkg: str) -> Optional[str]:
     """
     Uses PlatformIO Registry API v3 to search for the package and read its version.
     """
@@ -45,8 +47,11 @@ def fetch_latest_version_from_registry(pkg: str) -> str | None:
             query = f'"{pkg_name}"'
             
         url = "https://api.registry.platformio.org/v3/search?query=" + urllib.parse.quote(query)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
             data = json.loads(response.read().decode("utf-8"))
             
         # The search returns a list of items. Find the one matching the package name.
@@ -62,7 +67,7 @@ def fetch_latest_version_from_registry(pkg: str) -> str | None:
     return None
 
 
-def parse_installed_version_from_pkg_list(pkg: str, pioenv: str) -> str | None:
+def parse_installed_version_from_pkg_list(pkg: str, pioenv: str) -> Optional[str]:
     """
     Parses `pio pkg list -e <env>` output for a line like:
       eed-osu/ERC2 @ 1.0.4
