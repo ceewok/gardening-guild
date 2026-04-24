@@ -1295,6 +1295,9 @@ void task_window(int driveSpeed, int collisionDriveSpeed, int turnSpeed){
     rightAxisTurn(turnSpeed, -5);
     drive(-driveSpeed, 3.5); 
     windowServo.SetDegree(0);
+    Sleep(1.0);
+    windowServo.SetDegree(45);
+    
     driveTilCollision(-collisionDriveSpeed, 3, true);
 
     leftAxisTurn(turnSpeed, 90);
